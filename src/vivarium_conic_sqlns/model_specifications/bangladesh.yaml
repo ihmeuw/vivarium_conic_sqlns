@@ -34,7 +34,7 @@ components:
             - Disability()
             - MortalityObserver()
     vivarium_public_health.disease.special_disease:
-        - RiskAttributableDisease("cause.protein_energy_malnutrion", "risk_factor.child_wasting")
+        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
     vivarium_conic_sqlns.components:
         - HemoglobinLevel()
 
