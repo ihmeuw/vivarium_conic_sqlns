@@ -9,12 +9,11 @@ components:
         population:
             - BasePopulation()
             - Mortality()
-            - FertilityCrudeBirthrate()
+            - FertilityCrudeBirthRate()
         disease.models:
             - SIS("lower_respiratory_infections")
             - SIR_fixed_duration("measles", "10")
             - SIS("diarrheal_diseases")
-            # TODO: dietary iron deficiency
         risks:
             - Risk("alternative_risk_factor.child_stunting")
             - RiskEffect("risk_factor.child_stunting", "cause.diarrheal_diseases.incidence_rate")
@@ -31,8 +30,6 @@ components:
             - RiskEffect("risk_factor.child_underweight", "cause.measles.incidence_rate")
             - RiskEffect("risk_factor.child_underweight", "cause.lower_respiratory_infections.incidence_rate")
 
-            - Risk("risk_factor.iron_deficiency")
-            #- RiskEffect("risk_factor.iron_deficiency", "cause.dietary_iron_deficiency")
         metrics:
             - Disability()
             - MortalityObserver()
@@ -48,7 +45,7 @@ configuration:
         artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/bangladesh.hdf
     interpolation:
         order: 0
-        extrapolate: False
+        extrapolate: True 
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time']
