@@ -7,9 +7,19 @@ from vivarium_public_health.risks.data_transformations import get_distribution
 
 
 class HemoglobinLevel:
+
+    configuration_defaults = {
+        "risk": {
+            "exposure": 'data',
+            "rebinned_exposed": [],
+            "category_thresholds": [],
+        }
+    }
+
     def __init__(self):
         self.name = "hemoglobin_level"
         self.risk = EntityString("risk_factor.iron_deficiency")
+        self.configuration_defaults = {f'{self.risk.name}': HemoglobinLevel.configuration_defaults['risk']}
 
     def setup(self, builder):
         self.exposure_distribution = get_distribution(builder, self.risk)
