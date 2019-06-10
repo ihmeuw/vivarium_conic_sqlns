@@ -1,0 +1,53 @@
+plugins:
+    optional:
+        data:
+            controller: "vivarium_public_health.dataset_manager.ArtifactManager"
+            builder_interface: "vivarium_public_health.dataset_manager.ArtifactManagerInterface"
+
+components:
+    vivarium_public_health:
+        population:
+            - BasePopulation()
+            - Mortality()
+        metrics:
+            - Disability()
+            - MortalityObserver()
+
+    vivarium_conic_sqlns.components:
+
+configuration:
+    input_data:
+        location: United States
+        input_draw_number: 0
+        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/vivarium_conic_sqlns.hdf
+    interpolation:
+        order: 0
+        extrapolate: False
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time']
+        random_seed: 0
+    time:
+        start:
+            year: 2005
+            month: 7
+            day: 2
+        end:
+            year: 2010
+            month: 7
+            day: 2
+        step_size: 1 # Days
+    population:
+        population_size: 100
+        age_start: 0
+        age_end: 100
+
+    metrics:
+        disability:
+            by_age: False
+            by_sex: False
+            by_year: False
+        mortality:
+            by_age: False
+            by_sex: False
+            by_year: False
