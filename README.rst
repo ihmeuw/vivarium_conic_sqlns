@@ -10,8 +10,7 @@ Research repository for the vivarium_conic_sqlns project.
 Model Documentation Resources
 -----------------------------
 
-**You should put links to the concept model documentation and any other**
-**relevant documentation here.**
+CONCEPT MODEL: ``J:/Project/simulation_science/mnch/interventins/sq-lns/reports/SQ-LNS_concept_model_researcher.docx``
 
 Installation
 ------------
