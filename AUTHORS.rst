@@ -1,9 +1,9 @@
 Authors
 ======
 
-LEAD ENGINEER:
-RESEARCHER:
-DATA ANALYST:
+LEAD ENGINEER: James Collins
+RESEARCHER: Abie Flaxman
+DATA ANALYST: Yongquan Xie
 
 Contributors
 -------------
