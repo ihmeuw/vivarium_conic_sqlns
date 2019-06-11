@@ -1,6 +1,5 @@
+import numpy as np
 import pandas as pd
-
-from vivarium.interpolation import Order0Interp
 
 from vivarium_public_health.utilities import EntityString
 from vivarium_public_health.risks.data_transformations import get_distribution
@@ -9,7 +8,7 @@ from vivarium_public_health.risks.data_transformations import get_distribution
 class HemoglobinLevel:
 
     configuration_defaults = {
-        "risk": {
+        "iron_deficiency": {
             "exposure": 'data',
             "rebinned_exposed": [],
             "category_thresholds": [],
@@ -19,26 +18,23 @@ class HemoglobinLevel:
     def __init__(self):
         self.name = "hemoglobin_level"
         self.risk = EntityString("risk_factor.iron_deficiency")
-        self.configuration_defaults = {f'{self.risk.name}': HemoglobinLevel.configuration_defaults['risk']}
 
     def setup(self, builder):
-        self.exposure_distribution = get_distribution(builder, self.risk)
-        builder.components.add_components([self.exposure_distribution])
+        self.hemoglobin_distribution = get_distribution(builder, self.risk)
+        builder.components.add_components([self.hemoglobin_distribution])
 
-        self.anemia_thresholds = Order0Interp(get_anemia_thresholds(),
-                                              parameter_columns=[('age', 'age_group_start', 'age_group_end'),
-                                                                 ('hemoglobin', 'hemoglobin_start', 'hemoglobin_end')],
-                                              value_columns=['anemia_severity'],
-                                              extrapolate=builder.configuration.interpolation.extrapolate)
-        self.pop_view = builder.population.get_view(['age'])
+        self.anemia_thresholds = builder.lookup.build_table(get_anemia_thresholds(),
+                                                            parameter_columns=[('age',
+                                                                                'age_group_start', 'age_group_end')],
+                                                            value_columns=['anemia_thresholds', 'anemia_levels'])
 
-        self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')
+        self.randomness = builder.randomness.get_stream('initial_hemoglobin_propensity')
         self.propensity = pd.Series()
 
-        self.exposure = builder.value.register_value_producer(
-            f'{self.risk.name}.exposure',
-            source=self.get_current_exposure,
-            preferred_post_processor=self.get_exposure_post_processor()
+        self.hemoglobin_level = builder.value.register_value_producer(
+            'hemoglobin_level',
+            source=self.get_current_hemoglobin,
+            preferred_post_processor=self.get_hemoglobin_post_processor()
         )
 
         builder.population.initializes_simulants(self.on_initialize_simulants)
@@ -46,18 +42,22 @@ class HemoglobinLevel:
     def on_initialize_simulants(self, pop_data):
         self.propensity = self.propensity.append(self.randomness.get_draw(pop_data.index))
 
-    def get_current_exposure(self, index):
+    def get_current_hemoglobin(self, index):
         propensity = self.propensity(index)
-        return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
+        return pd.Series(self.hemoglobin_distribution.ppf(propensity), index=index)
 
-    def get_exposure_post_processor(self):
+    def get_hemoglobin_post_processor(self):
+        """Convert from raw hemoglobin level to anemia level."""
 
-        def post_processor(exposure, _):
-            sims = self.pop_view.get(exposure.index)
-            sims['hemoglobin'] = exposure
-            return self.anemia_thresholds(sims)
+        def get_anemia_level(hemoglobin, anemia):
+            return pd.cut(hemoglobin, anemia.anemia_thresholds[hemoglobin.name],
+                          labels=anemia.anemia_levels[hemoglobin.name], right=False)
 
-        return post_processor
+        def hemoglobin_to_anemia_post_processor(exposure, _):
+            anemia = self.anemia_thresholds(exposure.index)
+            return exposure.reset_index().apply(lambda hemo: get_anemia_level(hemo, anemia), axis=1)
+
+        return hemoglobin_to_anemia_post_processor
 
 
 def get_anemia_thresholds():
@@ -66,8 +66,8 @@ def get_anemia_thresholds():
     https://www.thelancet.com/cms/10.1016/S0140-6736(18)32279-7/attachment/b72819bc-83d9-441a-8edd-a7911a27597a/mmc1.pdf
     """
 
-    return pd.DataFrame({'age_group_start': [0] * 4 + [1] * 4,
-                         'age_group_end': [1 / 12] * 4 + [5] * 4,
-                         'hemoglobin_start': [0, 90, 130, 150, 0, 70, 100, 110],
-                         'hemoglobin_end': [90, 130, 150, 500, 70, 100, 110, 500],
-                         'anemia_severity': ['severe', 'moderate', 'mild', 'none'] * 2})
+    return pd.DataFrame({'age_group_start': [0, 1],
+                         'age_group_end': [1 / 12, 5],
+                         'anemia_thresholds': [[-np.inf, 90, 130, 150, np.inf],
+                                               [-np.inf, 70, 100, 110, np.inf]],
+                         'anemia_levels': ['severe', 'moderate', 'mild', 'none']})
