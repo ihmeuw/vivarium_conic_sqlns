@@ -29,22 +29,20 @@ class HemoglobinLevel:
                                                             value_columns=['anemia_thresholds', 'anemia_levels'])
 
         self.randomness = builder.randomness.get_stream('initial_hemoglobin_propensity')
-        self.propensity = pd.Series()
+        self._hemoglobin = pd.Series()
 
         self.hemoglobin_level = builder.value.register_value_producer(
             'hemoglobin_level',
-            source=self.get_current_hemoglobin,
-            preferred_post_processor=self.get_hemoglobin_post_processor()
+            source=lambda index: self._hemoglobin[index],
+            preferred_post_processor=self.get_hemoglobin_post_processor(),
         )
 
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
     def on_initialize_simulants(self, pop_data):
-        self.propensity = self.propensity.append(self.randomness.get_draw(pop_data.index))
-
-    def get_current_hemoglobin(self, index):
-        propensity = self.propensity(index)
-        return pd.Series(self.hemoglobin_distribution.ppf(propensity), index=index)
+        propensity = self.randomness.get_draw(pop_data.index)
+        new_sims_hemoglobin = pd.Series(self.hemoglobin_distribution.ppf(propensity), index=pop_data.index)
+        self._hemoglobin.append(new_sims_hemoglobin)
 
     def get_hemoglobin_post_processor(self):
         """Convert from raw hemoglobin level to anemia level."""
