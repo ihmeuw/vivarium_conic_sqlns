@@ -68,4 +68,4 @@ def get_anemia_thresholds():
                          'age_group_end': [1 / 12, 5],
                          'anemia_thresholds': [[-np.inf, 90, 130, 150, np.inf],
                                                [-np.inf, 70, 100, 110, np.inf]],
-                         'anemia_levels': ['severe', 'moderate', 'mild', 'none']})
+                         'anemia_levels': [['severe', 'moderate', 'mild', 'none']]})
