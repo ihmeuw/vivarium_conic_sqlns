@@ -1,0 +1,90 @@
+plugins:
+    optional:
+        data:
+            controller: "vivarium_public_health.dataset_manager.ArtifactManager"
+            builder_interface: "vivarium_public_health.dataset_manager.ArtifactManagerInterface"
+
+components:
+    vivarium_public_health:
+        population:
+            - BasePopulation()
+            - Mortality()
+            - FertilityCrudeBirthRate()
+        disease.models:
+            - SIS("lower_respiratory_infections")
+            - SIR_fixed_duration("measles", "10")
+            - SIS("diarrheal_diseases")
+        risks:
+            - Risk("alternative_risk_factor.child_stunting")
+            - RiskEffect("risk_factor.child_stunting", "cause.diarrheal_diseases.incidence_rate")
+            - RiskEffect("risk_factor.child_stunting", "cause.measles.incidence_rate")
+            - RiskEffect("risk_factor.child_stunting", "cause.lower_respiratory_infections.incidence_rate")
+
+            - Risk("alternative_risk_factor.child_wasting")
+            - RiskEffect("risk_factor.child_wasting", "cause.diarrheal_diseases.incidence_rate")
+            - RiskEffect("risk_factor.child_wasting", "cause.measles.incidence_rate")
+            - RiskEffect("risk_factor.child_wasting", "cause.lower_respiratory_infections.incidence_rate")
+
+            - Risk("alternative_risk_factor.child_underweight")
+            - RiskEffect("risk_factor.child_underweight", "cause.diarrheal_diseases.incidence_rate")
+            - RiskEffect("risk_factor.child_underweight", "cause.measles.incidence_rate")
+            - RiskEffect("risk_factor.child_underweight", "cause.lower_respiratory_infections.incidence_rate")
+
+        metrics:
+            - Disability()
+            - MortalityObserver()
+    vivarium_public_health.disease.special_disease:
+        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
+    vivarium_conic_sqlns.components:
+        - HemoglobinLevel()
+
+
+configuration:
+    input_data:
+        location: Ethiopia
+        input_draw_number: 0
+        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/ethiopia.hdf
+    interpolation:
+        order: 0
+        extrapolate: True 
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time']
+        random_seed: 0
+    time:
+        start:
+            year: 2020
+            month: 7
+            day: 1
+        end:
+            year: 2025
+            month: 7
+            day: 1
+        step_size: 1 # Days
+    population:
+        population_size: 10_000
+        age_start: 0
+        age_end: 5
+        exit_age: 5
+
+    metrics:
+        disability:
+            by_age: False
+            by_sex: False
+            by_year: False
+        mortality:
+            by_age: False
+            by_sex: False
+            by_year: False
+
+    child_stunting:
+        category_thresholds: [7, 8, 9]
+    child_wasting:
+        category_thresholds: [7, 8, 9]
+    child_underweight:
+        category_thresholds: [7, 8, 9]
+
+    protein_energy_malnutrition:
+        threshold : ['cat1', 'cat2']
+        mortality : True
+        recoverable : True
