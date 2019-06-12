@@ -29,14 +29,13 @@ components:
             - RiskEffect("risk_factor.child_underweight", "cause.diarrheal_diseases.incidence_rate")
             - RiskEffect("risk_factor.child_underweight", "cause.measles.incidence_rate")
             - RiskEffect("risk_factor.child_underweight", "cause.lower_respiratory_infections.incidence_rate")
-
-        metrics:
-            - Disability()
-            - MortalityObserver()
     vivarium_public_health.disease.special_disease:
         - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
     vivarium_conic_sqlns.components:
         - HemoglobinLevel()
+    vivarium_public_health.metrics:
+        - Disability()
+        - MortalityObserver()
 
 
 configuration:
