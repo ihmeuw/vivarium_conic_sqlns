@@ -77,7 +77,7 @@ def get_anemia_thresholds():
     https://www.thelancet.com/cms/10.1016/S0140-6736(18)32279-7/attachment/b72819bc-83d9-441a-8edd-a7911a27597a/mmc1.pdf
 
     """
-    return pd.DataFrame({'age_group_start': [0, 1, 5],
+    return pd.DataFrame({'age_group_start': [0, 1 / 12, 5],
                          'age_group_end': [1 / 12, 5, 14],
                          'anemia_thresholds': [[-np.inf, 90, 130, 150, np.inf],
                                                [-np.inf, 70, 100, 110, np.inf],
