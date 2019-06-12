@@ -5,7 +5,7 @@ from vivarium_public_health.utilities import EntityString
 from vivarium_public_health.risks.data_transformations import get_distribution
 
 
-class HemoglobinLevel:
+class Hemoglobin:
 
     configuration_defaults = {
         "iron_deficiency": {
