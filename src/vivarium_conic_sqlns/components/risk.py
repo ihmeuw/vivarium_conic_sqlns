@@ -23,7 +23,7 @@ class HemoglobinLevel:
         self.hemoglobin_distribution = get_distribution(builder, self.risk)
         builder.components.add_components([self.hemoglobin_distribution])
 
-        self.anemia_thresholds = builder.lookup.build_table(get_anemia_thresholds(),
+        self.anemia_thresholds = builder.lookup.build_table(get_anemia_thresholds(), key_columns=[],
                                                             parameter_columns=[('age',
                                                                                 'age_group_start', 'age_group_end')],
                                                             value_columns=['anemia_thresholds', 'anemia_levels'])
@@ -75,8 +75,8 @@ def get_anemia_thresholds():
     """Thresholds from 'Severity definitions used to calculate GBD 2016 anemia
     envelope' table, pg. 763 in supplementary appendix 1 to GBD 2017 found here
     https://www.thelancet.com/cms/10.1016/S0140-6736(18)32279-7/attachment/b72819bc-83d9-441a-8edd-a7911a27597a/mmc1.pdf
-    """
 
+    """
     return pd.DataFrame({'age_group_start': [0, 1, 5],
                          'age_group_end': [1 / 12, 5, 14],
                          'anemia_thresholds': [[-np.inf, 90, 130, 150, np.inf],
