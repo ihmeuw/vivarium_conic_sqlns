@@ -47,7 +47,7 @@ class HemoglobinLevel:
     def on_initialize_simulants(self, pop_data):
         propensity = self.randomness.get_draw(pop_data.index)
         new_sims_hemoglobin = pd.Series(self.hemoglobin_distribution.ppf(propensity), index=pop_data.index)
-        self._hemoglobin.append(new_sims_hemoglobin)
+        self._hemoglobin = self._hemoglobin.append(new_sims_hemoglobin)
 
     def compute_disability_weight(self, index):
         anemia = self.anemia_thresholds(index)
