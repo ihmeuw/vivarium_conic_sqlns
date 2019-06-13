@@ -33,8 +33,8 @@ components:
         - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
     vivarium_conic_sqlns.components:
         - Hemoglobin()
+        - DisabilityObserver()  # custom to include FE deficiency
     vivarium_public_health.metrics:
-        - Disability()
         - MortalityObserver()
 
 
@@ -45,7 +45,7 @@ configuration:
         artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/bangladesh.hdf
     interpolation:
         order: 0
-        extrapolate: True 
+        extrapolate: True
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time']
@@ -56,12 +56,12 @@ configuration:
             month: 7
             day: 1
         end:
-            year: 2025
+            year: 2020
             month: 7
-            day: 1
+            day: 15
         step_size: 1 # Days
     population:
-        population_size: 10_000
+        population_size: 1_000
         age_start: 0
         age_end: 5
         exit_age: 5

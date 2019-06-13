@@ -33,8 +33,8 @@ components:
         - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
     vivarium_conic_sqlns.components:
         - Hemoglobin()
+        - DisabilityObserver()  # custom to include FE deficiency
     vivarium_public_health.metrics:
-        - Disability()
         - MortalityObserver()
 
 
