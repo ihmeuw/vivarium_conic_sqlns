@@ -56,12 +56,12 @@ configuration:
             month: 7
             day: 1
         end:
-            year: 2020
+            year: 2025
             month: 7
-            day: 15
+            day: 1
         step_size: 1 # Days
     population:
-        population_size: 1_000
+        population_size: 10_000
         age_start: 0
         age_end: 5
         exit_age: 5
