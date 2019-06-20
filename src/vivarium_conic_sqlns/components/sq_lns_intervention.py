@@ -32,7 +32,7 @@ class SQLNSTreatmentAlgorithm:
         self.start_date = pd.Timestamp(**config['start_date'].to_dict())
         self.duration = pd.Timedelta(days=config['duration'])
         self.treatment_age = config['treatment_age']
-        self.coverage = config['coverage']
+        self.coverage = config['program_coverage']
 
         self.clock = builder.time.clock()
 
@@ -54,7 +54,7 @@ class SQLNSTreatmentAlgorithm:
         if pop_data.user_data['sim_state'] == 'setup' and pop_data.creation_time <= self.start_date:
             raise NotImplementedError("SQ-LNS intervention must begin strictly after the intervention start date.")
 
-        pop = pd.DataFrame({'sqlns_treatment_start': pd.NaT, 'treatment_start': pd.NaT},
+        pop = pd.DataFrame({'sqlns_treatment_start': pd.NaT, 'sqlns_treatment_end': pd.NaT},
                            index=pop_data.index)
         self.pop_view.update(pop)
 
@@ -103,7 +103,7 @@ class SQLNSEffect:
 
     def __init__(self, target):
         self.target = TargetString(target)
-        self.configuration_defaults = {'sqlns': {f'effect_on_{target.name}': SQLNSEffect.configuration_defaults['sqlns']['effect']}}
+        self.configuration_defaults = {'sqlns': {f'effect_on_{self.target.name}': SQLNSEffect.configuration_defaults['sqlns']['effect']}}
 
     @property
     def name(self):

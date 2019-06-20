@@ -5,14 +5,14 @@ from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import get_distribution
 
 
-class Hemoglobin(Risk):
+class IronDeficiencyAnemia(Risk):
 
     def __init__(self, *_, **__):
         super().__init__("risk_factor.iron_deficiency")
 
     @property
     def name(self):
-        return 'hemoglobin_and_iron_deficiency'
+        return 'IronDeficiencyAnemia'
 
     def setup(self, builder):
         super().setup(builder)
