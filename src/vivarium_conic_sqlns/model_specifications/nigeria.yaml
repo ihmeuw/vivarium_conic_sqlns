@@ -24,19 +24,17 @@ components:
             - RiskEffect("risk_factor.child_wasting", "cause.diarrheal_diseases.incidence_rate")
             - RiskEffect("risk_factor.child_wasting", "cause.measles.incidence_rate")
             - RiskEffect("risk_factor.child_wasting", "cause.lower_respiratory_infections.incidence_rate")
-
-            - Risk("alternative_risk_factor.child_underweight")
-            - RiskEffect("risk_factor.child_underweight", "cause.diarrheal_diseases.incidence_rate")
-            - RiskEffect("risk_factor.child_underweight", "cause.measles.incidence_rate")
-            - RiskEffect("risk_factor.child_underweight", "cause.lower_respiratory_infections.incidence_rate")
     vivarium_public_health.disease.special_disease:
         - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
     vivarium_conic_sqlns.components:
-        - Hemoglobin()
+        - IronDeficiencyAnemia()
+        - SQLNSTreatmentAlgorithm()
+        - SQLNSEffect('risk_factor.child_stunting.exposure')
+        - SQLNSEffect('risk_factor.child_wasting.exposure')
+        - SQLNSEffect('risk_factor.iron_deficiency.exposure')
         - DisabilityObserver()  # custom to include FE deficiency
     vivarium_public_health.metrics:
         - MortalityObserver()
-
 
 
 configuration:
@@ -46,7 +44,7 @@ configuration:
         artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/nigeria.hdf
     interpolation:
         order: 0
-        extrapolate: True 
+        extrapolate: True
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time']
@@ -61,6 +59,7 @@ configuration:
             month: 7
             day: 1
         step_size: 1 # Days
+
     population:
         population_size: 10_000
         age_start: 0
@@ -88,3 +87,29 @@ configuration:
         threshold : ['cat1', 'cat2']
         mortality : True
         recoverable : True
+
+    sqlns:
+        start_date:
+            year: 2020
+            month: 1
+            day: 1
+        treatment_age:
+            start: 0.5
+            end: 1.0
+        duration: 365.25
+        program_coverage: 0.0
+
+        effect_on_child_stunting:
+            mean: 0.0
+            sd: 0.0
+            individual_sd: 0.0
+
+        effect_on_child_wasting:
+            mean: 0.0
+            sd: 0.0
+            individual_sd: 0.0
+
+        effect_on_iron_deficiency:
+            mean: 0.0
+            sd: 0.0
+            individual_sd: 0.0
