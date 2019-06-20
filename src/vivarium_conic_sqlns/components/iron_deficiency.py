@@ -1,68 +1,58 @@
 import pandas as pd
 
 from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import get_distribution
 
 
-class Hemoglobin:
+class IronDeficiencyAnemia(Risk):
 
-    configuration_defaults = {
-        "iron_deficiency": {
-            "exposure": 'data',
-            "rebinned_exposed": [],
-            "category_thresholds": [],
-        }
-    }
+    def __init__(self, *_, **__):
+        super().__init__("risk_factor.iron_deficiency")
 
-    def __init__(self):
-        self.name = "hemoglobin_level"
-        self.risk = EntityString("risk_factor.iron_deficiency")
+    @property
+    def name(self):
+        return 'IronDeficiencyAnemia'
 
     def setup(self, builder):
-        self.hemoglobin_distribution = get_distribution(builder, self.risk)
-        builder.components.add_components([self.hemoglobin_distribution])
+        super().setup(builder)
 
-        self.pop_view = builder.population.get_view(['alive'])
+        self.anemia_thresholds = builder.lookup.build_table(
+            get_anemia_thresholds(),
+            key_columns=[],
+            parameter_columns=[('age', 'age_group_start', 'age_group_end')],
+            value_columns=['severe_threshold', 'moderate_threshold', 'mild_threshold']
+        )
+        self._disability_weight_data = builder.lookup.build_table(get_iron_deficiency_disability_weight(builder))
 
-        self.anemia_thresholds = builder.lookup.build_table(get_anemia_thresholds(), key_columns=[],
-                                                            parameter_columns=[('age',
-                                                                                'age_group_start',
-                                                                                'age_group_end')],
-                                                            value_columns=['severe_threshold', 'moderate_threshold',
-                                                                           'mild_threshold'])
-
-        self.randomness = builder.randomness.get_stream('initial_hemoglobin_propensity')
-
-        self._hemoglobin = pd.Series()
-        self.hemoglobin = builder.value.register_value_producer('hemoglobin',
-                                                                source=lambda index: self._hemoglobin[index])
-
-        self._disability_weight = builder.lookup.build_table(get_iron_deficiency_disability_weight(builder))
         self.disability_weight = builder.value.register_value_producer('iron_deficiency.disability_weight',
                                                                        source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
-        builder.population.initializes_simulants(self.on_initialize_simulants)
 
-    def on_initialize_simulants(self, pop_data):
-        propensity = self.randomness.get_draw(pop_data.index)
-        new_sims_hemoglobin = pd.Series(self.hemoglobin_distribution.ppf(propensity), index=pop_data.index)
-        self._hemoglobin = self._hemoglobin.append(new_sims_hemoglobin)
+        self.pop_view = builder.population.get_view(['alive', 'age'])
 
     def compute_disability_weight(self, index):
+        disability_weight = pd.Series(0, index=index)
+
+        disability_weight_data = self._disability_weight_data(index)
+        mild, moderate, severe = self.split_for_anemia(index)
+
+        disability_weight.loc[mild] = disability_weight_data.loc[mild, 'mild']
+        disability_weight.loc[moderate] = disability_weight_data.loc[moderate, 'moderate']
+        disability_weight.loc[severe] = disability_weight_data.loc[severe, 'severe']
+
+        return disability_weight * (self.pop_view.get(index).alive == 'alive')
+
+    def split_for_anemia(self, index):
         anemia = self.anemia_thresholds(index)
-        hemoglobin = self.hemoglobin(index)
-        severe_index = hemoglobin < anemia.severe_threshold
-        moderate_index = (anemia.severe_threshold <= hemoglobin) & (hemoglobin < anemia.moderate_threshold)
-        mild_index = (anemia.moderate_threshold <= hemoglobin) & (hemoglobin < anemia.mild_threshold)
+        hemoglobin = self.exposure(index)
 
-        dw_info = self._disability_weight(index)
-        dw = pd.Series(0, index=index)
-        dw.loc[mild_index] = dw_info.loc[mild_index, 'mild']
-        dw.loc[moderate_index] = dw_info.loc[moderate_index, 'moderate']
-        dw.loc[severe_index] = dw_info.loc[severe_index, 'severe']
+        mild = (anemia.moderate_threshold <= hemoglobin) & (hemoglobin < anemia.mild_threshold)
+        moderate = (anemia.severe_threshold <= hemoglobin) & (hemoglobin < anemia.moderate_threshold)
+        severe = hemoglobin < anemia.severe_threshold
 
-        return dw * (self.pop_view.get(index).alive == 'alive')
+        return mild, moderate, severe
 
 
 def get_anemia_thresholds():
