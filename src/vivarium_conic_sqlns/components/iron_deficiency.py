@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 from vivarium_public_health.utilities import EntityString
@@ -33,14 +32,14 @@ class Hemoglobin:
                                                                            'mild_threshold'])
 
         self.randomness = builder.randomness.get_stream('initial_hemoglobin_propensity')
-        self._hemoglobin = pd.Series()
 
+        self._hemoglobin = pd.Series()
         self.hemoglobin = builder.value.register_value_producer('hemoglobin',
                                                                 source=lambda index: self._hemoglobin[index])
 
         self._disability_weight = builder.lookup.build_table(get_iron_deficiency_disability_weight(builder))
         self.disability_weight = builder.value.register_value_producer('iron_deficiency.disability_weight',
-                                                                      source=self.compute_disability_weight)
+                                                                       source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         builder.population.initializes_simulants(self.on_initialize_simulants)
@@ -49,14 +48,13 @@ class Hemoglobin:
         propensity = self.randomness.get_draw(pop_data.index)
         new_sims_hemoglobin = pd.Series(self.hemoglobin_distribution.ppf(propensity), index=pop_data.index)
         self._hemoglobin = self._hemoglobin.append(new_sims_hemoglobin)
-        self.anemia_thresholds(pop_data.index)
 
     def compute_disability_weight(self, index):
         anemia = self.anemia_thresholds(index)
         hemoglobin = self.hemoglobin(index)
         severe_index = hemoglobin < anemia.severe_threshold
-        moderate_index = (hemoglobin >= anemia.severe_threshold) & (hemoglobin < anemia.moderate_threshold)
-        mild_index = (hemoglobin >= anemia.moderate_threshold) & (hemoglobin < anemia.mild_threshold)
+        moderate_index = (anemia.severe_threshold <= hemoglobin) & (hemoglobin < anemia.moderate_threshold)
+        mild_index = (anemia.moderate_threshold <= hemoglobin) & (hemoglobin < anemia.mild_threshold)
 
         dw_info = self._disability_weight(index)
         dw = pd.Series(0, index=index)
