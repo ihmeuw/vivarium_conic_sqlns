@@ -15,7 +15,7 @@ class SQLNSTreatmentAlgorithm:
                 "end": 1.0
             },
             "duration": 365.25,
-            "coverage": 0.0
+            "program_coverage": 0.0
         }
     }
 
@@ -75,11 +75,9 @@ class SQLNSTreatmentAlgorithm:
             pop.loc[treated_idx, 'sqlns'] = True
             pop.loc[treated_idx, 'treatment_start'] = event.time
 
-            # stop treatment for people who have aged out
-            aged_out_pop = pop.loc[(pop.age < self.treatment_age['end']) &
-                               (self.treatment_age['end'] <= pop_age_at_event) &
-                               (pop['sqlns'] == True)]
-            pop.loc[aged_out_pop.index, 'sqlns'] = False
+        finished_treatment = (pop['sqlns']
+                              & (pop['treatment_start'] - event.time >= self.duration))
+        pop.loc[finished_treatment, 'sqlns'] = False
 
         self.pop_view.update(pop)
 
