@@ -40,12 +40,12 @@ components:
 
 configuration:
     input_data:
-        location: Bangladesh
+        location: Burkina Faso
         input_draw_number: 0
-        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/bangladesh.hdf
+        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/burkina_faso.hdf
     interpolation:
         order: 0
-        extrapolate: True
+        extrapolate: True 
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time']

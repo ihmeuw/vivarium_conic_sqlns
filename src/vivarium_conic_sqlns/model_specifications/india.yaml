@@ -38,14 +38,15 @@ components:
         - MortalityObserver()
 
 
+
 configuration:
     input_data:
-        location: Bangladesh
+        location: India
         input_draw_number: 0
-        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/bangladesh.hdf
+        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/india.hdf
     interpolation:
         order: 0
-        extrapolate: True
+        extrapolate: True 
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time']
