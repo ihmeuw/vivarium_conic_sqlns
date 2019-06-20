@@ -60,6 +60,7 @@ configuration:
             month: 7
             day: 1
         step_size: 1 # Days
+
     population:
         population_size: 10_000
         age_start: 0
@@ -87,3 +88,14 @@ configuration:
         threshold : ['cat1', 'cat2']
         mortality : True
         recoverable : True
+
+    sqlns:
+        start_date:
+            year: 2020
+            month: 1
+            day: 1
+        treatment_age:
+            start: 0.5
+            end: 1.0
+        duration: 365.25
+        program_coverage: 0.0
