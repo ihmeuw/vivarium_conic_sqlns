@@ -47,16 +47,16 @@ configuration:
         extrapolate: True
     randomness:
         map_size: 1_000_000
-        key_columns: ['entrance_time']
+        key_columns: ['entrance_time', 'age']
         random_seed: 0
     time:
         start:
             year: 2020
-            month: 7
+            month: 1
             day: 1
         end:
             year: 2025
-            month: 7
+            month: 1
             day: 1
         step_size: 1 # Days
 
@@ -91,7 +91,7 @@ configuration:
     sqlns:
         start_date:
             year: 2020
-            month: 1
+            month: 7
             day: 1
         treatment_age:
             start: 0.5
