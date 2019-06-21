@@ -86,7 +86,7 @@ class SQLNSTreatmentAlgorithm:
 
     def is_covered(self, index):
         pop = self.pop_view.get(index)
-        return (pop['sqlns_treatment_start'] <= self.clock()) & (self.clock() <= pop['sqlns_treatment_end'])
+        return pop[(pop['sqlns_treatment_start'] <= self.clock()) & (self.clock() <= pop['sqlns_treatment_end'])].index
 
 
 class SQLNSEffect:
@@ -139,5 +139,8 @@ class SQLNSEffect:
 
 
     def adjust_exposure(self, index, exposure):
-        return exposure + self._effect_size.loc[self.is_covered(index)]
+        effect_size = pd.Series(0, index=index)
+        covered = self.is_covered(index)
+        effect_size.loc[covered] = self._effect_size.loc[covered]
+        return exposure + effect_size
 
