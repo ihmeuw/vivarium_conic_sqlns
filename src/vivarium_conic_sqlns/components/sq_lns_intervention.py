@@ -51,7 +51,7 @@ class SQLNSTreatmentAlgorithm:
         builder.value.register_value_producer('sqlns.coverage', source=self.is_covered)
 
     def on_initialize_simulants(self, pop_data):
-        if pop_data.user_data['sim_state'] == 'setup' and pop_data.creation_time <= self.start_date:
+        if pop_data.user_data['sim_state'] == 'setup' and pop_data.creation_time >= self.start_date:
             raise NotImplementedError("SQ-LNS intervention must begin strictly after the intervention start date.")
 
         pop = pd.DataFrame({'sqlns_treatment_start': pd.NaT, 'sqlns_treatment_end': pd.NaT},
@@ -116,7 +116,7 @@ class SQLNSEffect:
 
         self.randomness = builder.randomness.get_stream(self.name)
 
-        builder.value.register_value_modifier(str(self.target), self.adjust_exposure)
+        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', self.adjust_exposure)
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
     def on_initialize_simulants(self, pop_data):
