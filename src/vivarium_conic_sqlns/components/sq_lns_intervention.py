@@ -133,7 +133,6 @@ class SQLNSEffect:
             effect_size[effect_size < 0] = 0
         else:
             effect_size = individual_mean
-        import pdb; pdb.set_trace()
 
         self._effect_size = self._effect_size.append(pd.Series(effect_size, index=pop_data.index))
 
