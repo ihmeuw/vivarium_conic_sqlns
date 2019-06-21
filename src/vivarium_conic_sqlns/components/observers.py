@@ -52,7 +52,7 @@ class SampleHistoryObserver:
             'child_stunting_exposure': builder.value.get_value('child_stunting.exposure'),
             'child_wasting_exposure': builder.value.get_value('child_wasting.exposure'),
             'lower_resipratory_infections_incidence_rate': builder.value.get_value('lower_respiratory_infections.incidence_rate'),
-            'diarrhea_incidence_rate' : builder.value.get_value('diarrheal_diseases.incidence_rate'),
+            'diarrheal_diseases_incidence_rate' : builder.value.get_value('diarrheal_diseases.incidence_rate'),
             'measles_incidence_rate': builder.value.get_value('measles.incidence_rate'),
             'disability_weight': builder.value.get_value('disability_weight')
         }
