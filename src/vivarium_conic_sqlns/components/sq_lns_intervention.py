@@ -80,7 +80,7 @@ class SQLNSTreatmentAlgorithm:
             treated_idx = self.rand.filter_for_probability(eligible_pop.index, self.coverage)
         else:
             # Intervention hasn't started.
-            treated_idx = pd.Index()
+            treated_idx = pd.Index([])
 
         return treated_idx
 
@@ -117,6 +117,7 @@ class SQLNSEffect:
         self.randomness = builder.randomness.get_stream(self.name)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', self.adjust_exposure)
+        self.is_covered = builder.value.get_value('sqlns.coverage')
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
     def on_initialize_simulants(self, pop_data):
@@ -138,5 +139,5 @@ class SQLNSEffect:
 
 
     def adjust_exposure(self, index, exposure):
-        return exposure + self._effect_size.loc[index]
+        return exposure + self._effect_size.loc[self.is_covered(index)]
 
