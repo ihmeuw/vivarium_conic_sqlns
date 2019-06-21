@@ -1,3 +1,5 @@
+import pathlib
+
 import pandas as pd
 
 from vivarium_public_health.metrics import Disability
@@ -35,21 +37,23 @@ class SampleHistoryObserver:
     def setup(self, builder):
         config = builder.configuration['metrics']['sample_history']
         self.sample_size = config['sample_size']
-        self.path = config['path']
+        self.path = pathlib.Path(config['path']).resolve()
+        if self.path.suffix != '.hdf':
+            raise ValueError("metrics: sample_history: path must specify a path to an HDF file.")
 
         self.clock = builder.time.clock()
         self.randomness = builder.randomness.get_stream('sample_index')
 
+        self.builder = builder
         self.population_view = builder.population.get_view(['alive', 'age', 'sex', 'exit_time'])
 
         self.pipelines = {
-            'iron_deficiency': builder.value.get_value('iron_deficiency.exposure'),
-            'haz': builder.value.get_value('child_stunting.exposure'),
-            'whz': builder.value.get_value('child_wasting.exposure'),
-            'lri': builder.value.get_value('lower_respiratory_infections.incidence_rate'),
-            'diarrhea' : builder.value.get_value('diarrheal_diseases.incidence_rate'),
-            'measles': builder.value.get_value('measles.incidence_rate'),
-            'pem': builder.value.get_value('protein_energy_malnutrition.incidence_rate'),
+            'iron_deficiency_exposure': builder.value.get_value('iron_deficiency.exposure'),
+            'child_stunting_exposure': builder.value.get_value('child_stunting.exposure'),
+            'child_wasting_exposure': builder.value.get_value('child_wasting.exposure'),
+            'lower_resipratory_infections_incidence_rate': builder.value.get_value('lower_respiratory_infections.incidence_rate'),
+            'diarrhea_incidence_rate' : builder.value.get_value('diarrheal_diseases.incidence_rate'),
+            'measles_incidence_rate': builder.value.get_value('measles.incidence_rate'),
             'disability_weight': builder.value.get_value('disability_weight')
         }
 
@@ -58,29 +62,32 @@ class SampleHistoryObserver:
         builder.event.register_listener('simulation_end', self.dump_history)
 
     def get_sample_index(self, pop_data):
-        pop_size = len(pop_data.index)
-        if self.sample_size > pop_size:
-            raise ValueError("Sample size cannot exceed initial population size.")
+        if self.sample_index is None:
+            pop_size = len(pop_data.index)
+            if self.sample_size > pop_size:
+                raise ValueError("Sample size cannot exceed initial population size.")
 
-        draw = self.randomness.get_draw(pop_data.index)
-        priority_index = [i for d, i in sorted(zip(draw, pop_data.index), key=lambda x:x[0])]
-        self.sample_index = pd.Index(priority_index[:self.sample_size])
+            draw = self.randomness.get_draw(pop_data.index)
+            priority_index = [i for d, i in sorted(zip(draw, pop_data.index), key=lambda x:x[0])]
+            self.sample_index = pd.Index(priority_index[:self.sample_size])
 
     def record(self, event):
         pop = self.population_view.get(self.sample_index)
-
         pipeline_results = []
         for name, pipeline in self.pipelines.items():
             if name == 'iron_deficiency':
-                skip_post_processor = True
+                skip_post_processor = True  # raw hemoglobin was requested
             else:
                 skip_post_processor = False
 
-            values = pipeline(self.sample_index, skip_post_processor=skip_post_processor)
+            # Using pop.index due to untracked individuals
+            values = pipeline(pop.index, skip_post_processor=skip_post_processor)
             values = values.rename(name)
             pipeline_results.append(values)
 
-            raw_values = pipeline.source(self.sample_index)
+            raw_values = pipeline.source(pop.index)
+            if isinstance(raw_values, list):
+                raw_values = raw_values[0]
             raw_values = raw_values.rename(f'{name}_baseline')
             pipeline_results.append(raw_values)
 
@@ -92,6 +99,5 @@ class SampleHistoryObserver:
         self.history_snapshots.append(record)
 
     def dump_history(self, event):
-
         sample_history = pd.concat(self.history_snapshots, axis=0)
         sample_history.to_hdf(self.path, key='sample_histories')
