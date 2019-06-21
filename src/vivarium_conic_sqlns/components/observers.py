@@ -83,7 +83,7 @@ class SampleHistoryObserver:
             pipeline_results.append(values)
 
             # some pipelines sources aren't really a 'baseline'
-            if name != 'disability_weight' and not name.endswith('_incidence_rate'):
+            if not name.endswith('disability_weight') and not name.endswith('_incidence_rate'):
                 raw_values = pipeline.source(pop.index)
                 raw_values = raw_values.rename(f'{name}_baseline')
                 pipeline_results.append(raw_values)
