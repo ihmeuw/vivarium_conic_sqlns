@@ -94,8 +94,8 @@ configuration:
     sqlns:
         start_date:
             year: 2020
-            month: 7
-            day: 1
+            month: 1
+            day: 15
         treatment_age:
             start: 0.5
             end: 1.0
