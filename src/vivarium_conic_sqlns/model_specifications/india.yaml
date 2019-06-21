@@ -24,15 +24,18 @@ components:
             - RiskEffect("risk_factor.child_wasting", "cause.diarrheal_diseases.incidence_rate")
             - RiskEffect("risk_factor.child_wasting", "cause.measles.incidence_rate")
             - RiskEffect("risk_factor.child_wasting", "cause.lower_respiratory_infections.incidence_rate")
-    vivarium_public_health.disease.special_disease:
-        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
+
     vivarium_conic_sqlns.components:
         - IronDeficiencyAnemia()
         - SQLNSTreatmentAlgorithm()
         - SQLNSEffect('risk_factor.child_stunting.exposure')
         - SQLNSEffect('risk_factor.child_wasting.exposure')
         - SQLNSEffect('risk_factor.iron_deficiency.exposure')
-        - DisabilityObserver()  # custom to include FE deficiency
+    vivarium_public_health.disease.special_disease:
+        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
+    vivarium_conic_sqlns:
+        components:
+            - DisabilityObserver()  # custom to include FE deficiency
     vivarium_public_health.metrics:
         - MortalityObserver()
 
