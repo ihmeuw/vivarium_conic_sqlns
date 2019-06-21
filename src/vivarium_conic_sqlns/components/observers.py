@@ -57,6 +57,8 @@ class SampleHistoryObserver:
             'diarrheal_diseases_disability_weight': builder.value.get_value('diarrheal_diseases.disability_weight'),
             'measles_incidence_rate': builder.value.get_value('measles.incidence_rate'),
             'measles_disability_weight': builder.value.get_value('measles.disability_weight'),
+            'iron_deficiency_disability_weight': builder.value.get_value('iron_deficiency.disability_weight'),
+            'protein_energy_malnutrition_disability_weight': builder.value.get_value('protein_energy_malnutrition.disability_weight'),
             'disability_weight': builder.value.get_value('disability_weight')
         }
 
