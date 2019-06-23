@@ -14,6 +14,7 @@ components:
             - SIS("lower_respiratory_infections")
             - SIR_fixed_duration("measles", "10")
             - SIS("diarrheal_diseases")
+
         risks:
             - Risk("alternative_risk_factor.child_stunting")
             - RiskEffect("risk_factor.child_stunting", "cause.diarrheal_diseases.incidence_rate")
@@ -31,13 +32,13 @@ components:
         - SQLNSEffect('risk_factor.child_stunting.exposure')
         - SQLNSEffect('risk_factor.child_wasting.exposure')
         - SQLNSEffect('risk_factor.iron_deficiency.exposure')
-    vivarium_public_health.disease.special_disease:
-        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
-    vivarium_conic_sqlns:
-        components:
-            - DisabilityObserver()  # custom to include FE deficiency
+        - DisabilityObserver()  # custom to include FE deficiency
+        - RiskObserver("risk_factor.child_stunting")
+        - RiskObserver("risk_factor.child_wasting")
     vivarium_public_health.metrics:
         - MortalityObserver()
+    vivarium_public_health.disease.special_disease:
+        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
 
 
 configuration:
@@ -82,8 +83,6 @@ configuration:
     child_stunting:
         category_thresholds: [7, 8, 9]
     child_wasting:
-        category_thresholds: [7, 8, 9]
-    child_underweight:
         category_thresholds: [7, 8, 9]
 
     protein_energy_malnutrition:

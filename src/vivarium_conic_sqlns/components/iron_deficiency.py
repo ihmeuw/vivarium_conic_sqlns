@@ -1,14 +1,22 @@
 import pandas as pd
 
-from vivarium_public_health.utilities import EntityString
 from vivarium_public_health.risks import Risk
-from vivarium_public_health.risks.data_transformations import get_distribution
 
 
 class IronDeficiencyAnemia(Risk):
 
     def __init__(self, *_, **__):
         super().__init__("risk_factor.iron_deficiency")
+        self.configuration_defaults.update({
+            'metrics': {
+                'anemia_observer': {
+                    'sample_date': {
+                        'month': 7,
+                        'day': 1,
+                    }
+                }
+            }
+        })
 
     @property
     def name(self):
@@ -24,13 +32,17 @@ class IronDeficiencyAnemia(Risk):
             value_columns=['severe_threshold', 'moderate_threshold', 'mild_threshold']
         )
         self._disability_weight_data = builder.lookup.build_table(get_iron_deficiency_disability_weight(builder))
-
         self.disability_weight = builder.value.register_value_producer('iron_deficiency.disability_weight',
                                                                        source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
-
         self.pop_view = builder.population.get_view(['alive', 'age'])
+
+        self.data = {}
+        self.observer_config = builder.configuration['metrics']['anemia_observer']
+        self.clock = builder.time.clock()
+        builder.value.register_value_modifier('metrics', self.metrics)
+        builder.event.register_listener('collect_metrics', self.on_collect_metrics)
 
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0, index=index)
@@ -53,6 +65,44 @@ class IronDeficiencyAnemia(Risk):
         severe = hemoglobin < anemia.severe_threshold
 
         return mild, moderate, severe
+
+    def on_collect_metrics(self, event):
+        """Records counts of risk exposed by category."""
+        pop = self.pop_view.get(event.index, query='alive == "alive"')
+
+        if self.should_sample(event.time):
+            sample = self.generate_sampling_frame()
+            mild, moderate, severe = self.split_for_anemia(pop.index)
+            sample.loc['0_to_5', 'mild'] = len(pop.loc[mild])
+            sample.loc['0_to_5', 'moderate'] = len(pop.loc[moderate])
+            sample.loc['0_to_5', 'severe'] = len(pop.loc[severe])
+            sample.loc['0_to_5', 'unexposed'] = len(pop) - (len(pop.loc[mild])
+                                                            + len(pop.loc[moderate])
+                                                            + len(pop.loc[severe]))
+
+            self.data[self.clock().year] = sample
+
+    def should_sample(self, event_time: pd.Timestamp) -> bool:
+        """Returns true if we should sample on this time step."""
+        sample_date = pd.Timestamp(event_time.year,
+                                   self.observer_config.sample_date.month,
+                                   self.observer_config.sample_date.day)
+        return self.clock() <= sample_date < event_time
+
+    def generate_sampling_frame(self) -> pd.DataFrame:
+        """Generates an empty sampling data frame."""
+        sample = pd.DataFrame({'unexposed': 0, 'mild': 0, 'moderate': 0, 'severe': 0}, index=['0_to_5'])
+        return sample
+
+    def metrics(self, index, metrics):
+        for year, sample in self.data.items():
+            for category in sample.columns:
+                label = f'anemia_{category}_in_{year}_among_0_to_5'
+                metrics[label] = sample.loc['0_to_5', category]
+        return metrics
+
+    def __repr__(self):
+        return f"CategoricalRiskObserver({self.risk})"
 
 
 def get_anemia_thresholds():
