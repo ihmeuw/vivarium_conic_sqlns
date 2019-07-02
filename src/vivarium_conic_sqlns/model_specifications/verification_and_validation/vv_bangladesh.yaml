@@ -33,10 +33,10 @@ components:
         - SQLNSEffect('risk_factor.child_wasting.exposure')
         - SQLNSEffect('risk_factor.iron_deficiency.exposure')
         - DisabilityObserver()  # custom to include FE deficiency
+        - VVRiskObserver("risk_factor.child_stunting")
+        - VVRiskObserver("risk_factor.child_wasting")
     vivarium_public_health.metrics:
         - MortalityObserver()
-        - RiskObserver("risk_factor.child_stunting")
-        - RiskObserver("risk_factor.child_wasting")
     vivarium_public_health.disease.special_disease:
         - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
 
