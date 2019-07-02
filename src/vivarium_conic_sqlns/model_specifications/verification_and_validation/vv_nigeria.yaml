@@ -1,0 +1,123 @@
+plugins:
+    optional:
+        data:
+            controller: "vivarium_public_health.dataset_manager.ArtifactManager"
+            builder_interface: "vivarium_public_health.dataset_manager.ArtifactManagerInterface"
+
+components:
+    vivarium_public_health:
+        population:
+            - BasePopulation()
+            - Mortality()
+            - FertilityCrudeBirthRate()
+        disease.models:
+            - SIS("lower_respiratory_infections")
+            - SIR_fixed_duration("measles", "10")
+            - SIS("diarrheal_diseases")
+
+        risks:
+            - Risk("alternative_risk_factor.child_stunting")
+            - RiskEffect("risk_factor.child_stunting", "cause.diarrheal_diseases.incidence_rate")
+            - RiskEffect("risk_factor.child_stunting", "cause.measles.incidence_rate")
+            - RiskEffect("risk_factor.child_stunting", "cause.lower_respiratory_infections.incidence_rate")
+
+            - Risk("alternative_risk_factor.child_wasting")
+            - RiskEffect("risk_factor.child_wasting", "cause.diarrheal_diseases.incidence_rate")
+            - RiskEffect("risk_factor.child_wasting", "cause.measles.incidence_rate")
+            - RiskEffect("risk_factor.child_wasting", "cause.lower_respiratory_infections.incidence_rate")
+
+    vivarium_conic_sqlns.components:
+        - VVIronDeficiencyAnemia()
+        - SQLNSTreatmentAlgorithm()
+        - SQLNSEffect('risk_factor.child_stunting.exposure')
+        - SQLNSEffect('risk_factor.child_wasting.exposure')
+        - SQLNSEffect('risk_factor.iron_deficiency.exposure')
+        - DisabilityObserver()  # custom to include FE deficiency
+        - VVRiskObserver("risk_factor.child_stunting")
+        - VVRiskObserver("risk_factor.child_wasting")
+    vivarium_public_health.metrics:
+        - MortalityObserver()
+    vivarium_public_health.disease.special_disease:
+        - RiskAttributableDisease("cause.protein_energy_malnutrition", "risk_factor.child_wasting")
+
+
+configuration:
+    input_data:
+        location: Nigeria
+        input_draw_number: 0
+        artifact_path: /share/costeffectiveness/artifacts/vivarium_conic_sqlns/nigeria.hdf
+    interpolation:
+        order: 0
+        extrapolate: True
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time', 'age']
+        random_seed: 0
+    time:
+        start:
+            year: 2020
+            month: 1
+            day: 1
+        end:
+            year: 2025
+            month: 1
+            day: 1
+        step_size: 1 # Days
+
+    population:
+        population_size: 10_000
+        age_start: 0
+        age_end: 5
+        exit_age: 5
+
+    metrics:
+        disability:
+            by_age: True
+            by_sex: True
+            by_year: True
+        mortality:
+            by_age: True
+            by_sex: True
+            by_year: True
+        anemia_observer:
+            by_age: True
+            by_sex: True
+            by_year: True
+
+    child_stunting:
+        category_thresholds: [7, 8, 9]
+    child_wasting:
+        category_thresholds: [7, 8, 9]
+    child_underweight:
+        category_thresholds: [7, 8, 9]
+
+    protein_energy_malnutrition:
+        threshold : ['cat1', 'cat2']
+        mortality : True
+        recoverable : True
+
+    sqlns:
+        start_date:
+            year: 2020
+            month: 1
+            day: 15
+        treatment_age:
+            start: 0.5
+            end: 1.0
+        duration: 365.25
+        program_coverage: 0.0
+
+        effect_on_child_stunting:
+            mean: 0.10
+            sd: 0.051
+            individual_sd: 0.0
+
+        effect_on_child_wasting:
+            mean: 0.07
+            sd: 0.041
+            individual_sd: 0.0
+
+        effect_on_iron_deficiency:
+            mean: 8.95
+            sd: 0.658
+            individual_sd: 0.0
