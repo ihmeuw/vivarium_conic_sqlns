@@ -1,0 +1,7 @@
+input_draw_count: 65
+random_seed_count: 5
+
+branches:
+  - sqlns:
+      program_coverage: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
