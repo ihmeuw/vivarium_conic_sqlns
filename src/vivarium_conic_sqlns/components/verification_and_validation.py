@@ -179,7 +179,10 @@ class VVRiskObserver:
                 'sample_date': {
                     'month': 7,
                     'day': 1
-                }
+                },
+                'by_age': True,
+                'by_sex': True,
+                'by_year': True,
             }
         }
     }
@@ -207,8 +210,9 @@ class VVRiskObserver:
         self.clock = builder.time.clock()
         self.categories = self.config.categories
         self.age_bins = get_age_bins(builder)
+        self.category_counts = Counter()
 
-        self.population_view = builder.population.get_view(['alive', 'age'], query='alive == "alive"')
+        self.population_view = builder.population.get_view(['alive', 'age', 'sex'], query='alive == "alive"')
 
         self.exposure = builder.value.get_value(f'{self.risk.name}.exposure')
         builder.value.register_value_modifier('metrics', self.metrics)
@@ -220,14 +224,24 @@ class VVRiskObserver:
         pop = self.population_view.get(event.index)
 
         if self.should_sample(event.time):
-            sample = self.generate_sampling_frame()
+            age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(self.config, self.age_bins)
+            group_counts = {}
             exposure = self.exposure(pop.index)
-            for group, age_group in self.age_bins.iterrows():
-                start, end = age_group.age_group_start, age_group.age_group_end
-                in_group = pop[(pop.age >= start) & (pop.age < end)]
-                sample.loc[group] = exposure.loc[in_group.index].value_counts()
 
-            self.data[self.clock().year] = sample
+            for group, age_group in ages:
+                start, end = age_group.age_group_start, age_group.age_group_end
+                for sex in sexes:
+                    filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex, 'age_group': group}
+                    group_filter = age_sex_filter.format(**filter_kwargs)
+                    in_group = pop.query(group_filter) if group_filter and not pop.empty else pop
+
+                    for cat in self.categories:
+                        base_key = get_output_template(**self.config).substitute(
+                            measure=f'{self.risk.name}_{cat}_exposed', year=self.clock().year)
+                        group_key = base_key.substitute(**filter_kwargs)
+                        group_counts[group_key] = (exposure.loc[in_group.index] == cat).sum()
+
+            self.category_counts.update(group_counts)
 
     def should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
