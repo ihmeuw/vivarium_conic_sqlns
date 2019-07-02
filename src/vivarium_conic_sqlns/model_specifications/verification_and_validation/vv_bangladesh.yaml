@@ -82,6 +82,7 @@ configuration:
         anemia_observer:
             by_age: True
             by_sex: True
+            by_year: True
 
     child_stunting:
         category_thresholds: [7, 8, 9]
