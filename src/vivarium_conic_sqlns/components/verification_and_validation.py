@@ -254,12 +254,7 @@ class VVRiskObserver:
         return sample
 
     def metrics(self, index, metrics):
-        for age_id, age_group in self.age_bins.iterrows():
-            age_group_name = age_group.age_group_name.replace(" ", "_").lower()
-            for year, sample in self.data.items():
-                for category in sample.columns:
-                    label = f'{self.risk.name}_{category}_exposed_in_{year}_among_{age_group_name}'
-                    metrics[label] = sample.loc[age_id, category]
+        metrics.update(self.category_counts)
         return metrics
 
     def __repr__(self):
