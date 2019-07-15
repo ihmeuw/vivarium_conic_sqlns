@@ -97,6 +97,7 @@ class SQLNSEffect:
                 "mean": 0.0,
                 "sd": 0.0,
                 "individual_sd": 0.0,
+                "permanent": False,
             }
         }
     }
@@ -111,14 +112,16 @@ class SQLNSEffect:
 
     def setup(self, builder):
         self.config = builder.configuration.sqlns[f'effect_on_{self.target.name}']
+        self.clock = builder.time.clock()
 
         self._effect_size = pd.Series()
 
         self.randomness = builder.randomness.get_stream(self.name)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', self.adjust_exposure)
-        self.is_covered = builder.value.get_value('sqlns.coverage')
+        self.currently_covered = builder.value.get_value('sqlns.coverage')
         builder.population.initializes_simulants(self.on_initialize_simulants)
+        self.pop_view = builder.population.get_view(['sqlns_treatment_start'])
 
     def on_initialize_simulants(self, pop_data):
         rs = np.random.RandomState(seed=self.randomness.get_seed())
@@ -137,10 +140,15 @@ class SQLNSEffect:
 
         self._effect_size = self._effect_size.append(pd.Series(effect_size, index=pop_data.index))
 
-
     def adjust_exposure(self, index, exposure):
         effect_size = pd.Series(0, index=index)
-        covered = self.is_covered(index)
-        effect_size.loc[covered] = self._effect_size.loc[covered]
+
+        if self.config.permanent:
+            pop = self.pop_view.get(index)
+            effectively_treated = pop.loc[pop['sqlns_treatment_start'] <= self.clock()]
+        else:
+            effectively_treated = self.currently_covered(index)
+
+        effect_size.loc[effectively_treated] = self._effect_size.loc[effectively_treated]
         return exposure + effect_size
 
