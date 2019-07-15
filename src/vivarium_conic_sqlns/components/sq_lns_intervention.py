@@ -151,4 +151,3 @@ class SQLNSEffect:
 
         effect_size.loc[effectively_treated] = self._effect_size.loc[effectively_treated]
         return exposure + effect_size
-

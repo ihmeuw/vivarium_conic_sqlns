@@ -106,8 +106,6 @@ class RiskObserver:
         return f"CategoricalRiskObserver({self.risk})"
 
 
-
-
 class SampleHistoryObserver:
 
     configuration_defaults = {
@@ -193,3 +191,34 @@ class SampleHistoryObserver:
     def dump_history(self, event):
         sample_history = pd.concat(self.history_snapshots, axis=0)
         sample_history.to_hdf(self.path, key='sample_histories')
+
+
+class SQLNSObserver:
+    """Observer for total dates treated with SQLNS."""
+
+    @property
+    def name(self):
+        return 'sqlns_observer'
+
+    def setup(self, builder):
+        self.population_view = builder.population.get_view(['tracked', 'exit_time',
+                                                            'sqlns_treatment_start', 'sqlns_treatment_end'])
+        builder.value.register_value_modifier('metrics', self.metrics)
+
+    def metrics(self, index, metrics):
+        pop = self.population_view.get(index)
+        treated = pop.loc[~pop['sqlns_treatment_start'].isnull()]
+
+        treatment_end = treated['sqlns_treatment_end'].copy()
+        died_before_treatment_end = treated['exit_time'] < treatment_end
+        treatment_end.loc[died_before_treatment_end] = treated.loc[died_before_treatment_end, 'exit_time']
+
+        treatment_days = (treated['sqlns_treatment_start'] - treatment_end) / pd.Timedelta(days=1)
+
+        metrics['sqlns_treated_days'] = treatment_days.sum()
+        return metrics
+
+
+
+
+
