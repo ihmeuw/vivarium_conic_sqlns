@@ -48,8 +48,6 @@ class SQLNSTreatmentAlgorithm:
 
         builder.event.register_listener('time_step', self.on_time_step)
 
-        builder.value.register_value_producer('sqlns.coverage', source=self.is_covered)
-
     def on_initialize_simulants(self, pop_data):
         if pop_data.user_data['sim_state'] == 'setup' and pop_data.creation_time >= self.start_date:
             raise NotImplementedError("SQ-LNS intervention must begin strictly after the intervention start date.")
@@ -84,10 +82,6 @@ class SQLNSTreatmentAlgorithm:
 
         return treated_idx
 
-    def is_covered(self, index):
-        pop = self.pop_view.get(index)
-        return pop[(pop['sqlns_treatment_start'] <= self.clock()) & (self.clock() <= pop['sqlns_treatment_end'])].index
-
 
 class SQLNSEffect:
 
@@ -98,6 +92,7 @@ class SQLNSEffect:
                 "sd": 0.0,
                 "individual_sd": 0.0,
                 "permanent": False,
+                "ramp": 28, # Length of ramp up, ramp down time in days.
             }
         }
     }
@@ -111,6 +106,7 @@ class SQLNSEffect:
         return f'sqlns_effect_on_{self.target.name}'
 
     def setup(self, builder):
+        self.treatment_duration = builder.configuration.sqlns.duration
         self.config = builder.configuration.sqlns[f'effect_on_{self.target.name}']
         self.clock = builder.time.clock()
 
@@ -119,9 +115,9 @@ class SQLNSEffect:
         self.randomness = builder.randomness.get_stream(self.name)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', self.adjust_exposure)
-        self.currently_covered = builder.value.get_value('sqlns.coverage')
+
         builder.population.initializes_simulants(self.on_initialize_simulants)
-        self.pop_view = builder.population.get_view(['sqlns_treatment_start'])
+        self.pop_view = builder.population.get_view(['sqlns_treatment_start', 'sqlns_treatment_end'])
 
     def on_initialize_simulants(self, pop_data):
         rs = np.random.RandomState(seed=self.randomness.get_seed())
@@ -142,12 +138,27 @@ class SQLNSEffect:
 
     def adjust_exposure(self, index, exposure):
         effect_size = pd.Series(0, index=index)
+        treatment_groups = self._get_treatment_groups(index)
 
-        if self.config.permanent:
-            pop = self.pop_view.get(index)
-            effectively_treated = pop.loc[pop['sqlns_treatment_start'] <= self.clock()]
-        else:
-            effectively_treated = self.currently_covered(index)
-
-        effect_size.loc[effectively_treated] = self._effect_size.loc[effectively_treated]
         return exposure + effect_size
+
+    def _get_treatment_groups(self, index):
+        ramp_time = pd.Timedelta(days=self.config.ramp)
+
+        pop = self.pop_view.get(index)
+        untreated = pop.loc[(pop['sqlns_treatment_start'].isnull())
+                            | (pop['sqlns_treatment_start'] == self.clock())].index
+        ramp_up = pop.loc[(pop['sqlns_treatment_start'] > self.clock())
+                          & (self.clock() < pop['sqlns_treatment_start'] + ramp_time)].index
+        full_treatment = pop.loc[(pop['sqlns_treatment_start'] + ramp_time <= self.clock())
+                                 & (self.clock() <= pop['sqlns_treatment_end'])].index
+        ramp_down = pop.loc[(pop['sqlns_treatment_end'] < self.clock())
+                            & (self.clock() < pop['sqlns_treatment_end'] + ramp_time)].index
+        post_treatment = pop.loc[pop['sqlns_treatment_end'] + ramp_time <= self.clock()].index
+
+        return {'untreated': untreated,
+                'ramp_up': ramp_up,
+                'full_treatment': full_treatment,
+                'ramp_down': ramp_down,
+                'post_treatment': post_treatment}
+
