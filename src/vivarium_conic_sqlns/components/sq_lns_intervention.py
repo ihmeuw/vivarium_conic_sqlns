@@ -106,7 +106,6 @@ class SQLNSEffect:
         return f'sqlns_effect_on_{self.target.name}'
 
     def setup(self, builder):
-        self.treatment_duration = builder.configuration.sqlns.duration
         self.config = builder.configuration.sqlns[f'effect_on_{self.target.name}']
         self.clock = builder.time.clock()
 
