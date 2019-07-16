@@ -138,7 +138,7 @@ class SQLNSEffect:
 
     def adjust_exposure(self, index, exposure):
         effect_size = pd.Series(0, index=index)
-        untreated, ramp_up, full_treatment, ramp_down, post_treatment = self._get_treatment_groups(index)
+        untreated, ramp_up, full_treatment, ramp_down, post_treatment = self.get_treatment_groups(index)
 
         effect_size.loc[untreated] = 0
         effect_size.loc[ramp_up] = self.ramp_efficacy(ramp_up)
@@ -152,7 +152,7 @@ class SQLNSEffect:
 
         return exposure + effect_size
 
-    def _get_treatment_groups(self, index):
+    def get_treatment_groups(self, index):
         ramp_time = pd.Timedelta(days=self.config.ramp)
 
         pop = self.pop_view.get(index)
