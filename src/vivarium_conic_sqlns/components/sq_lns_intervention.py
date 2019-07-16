@@ -197,7 +197,6 @@ class SQLNSEffect:
         if index.empty:
             return pd.Series()
 
-        import pdb; pdb.set_trace()
         pop = self.pop_view.get(index)
         # 1/p is the proportion of the maximum effect.
         # Size of the discontinuity between constant and logistic functions.
