@@ -48,8 +48,6 @@ class SQLNSTreatmentAlgorithm:
 
         builder.event.register_listener('time_step', self.on_time_step)
 
-        builder.value.register_value_producer('sqlns.coverage', source=self.is_covered)
-
     def on_initialize_simulants(self, pop_data):
         if pop_data.user_data['sim_state'] == 'setup' and pop_data.creation_time >= self.start_date:
             raise NotImplementedError("SQ-LNS intervention must begin strictly after the intervention start date.")
@@ -84,10 +82,6 @@ class SQLNSTreatmentAlgorithm:
 
         return treated_idx
 
-    def is_covered(self, index):
-        pop = self.pop_view.get(index)
-        return pop[(pop['sqlns_treatment_start'] <= self.clock()) & (self.clock() <= pop['sqlns_treatment_end'])].index
-
 
 class SQLNSEffect:
 
@@ -98,6 +92,7 @@ class SQLNSEffect:
                 "sd": 0.0,
                 "individual_sd": 0.0,
                 "permanent": False,
+                "ramp": 28,  # Length of ramp up, ramp down time in days.
             }
         }
     }
@@ -119,9 +114,9 @@ class SQLNSEffect:
         self.randomness = builder.randomness.get_stream(self.name)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', self.adjust_exposure)
-        self.currently_covered = builder.value.get_value('sqlns.coverage')
+
         builder.population.initializes_simulants(self.on_initialize_simulants)
-        self.pop_view = builder.population.get_view(['sqlns_treatment_start'])
+        self.pop_view = builder.population.get_view(['sqlns_treatment_start', 'sqlns_treatment_end'])
 
     def on_initialize_simulants(self, pop_data):
         rs = np.random.RandomState(seed=self.randomness.get_seed())
@@ -142,12 +137,76 @@ class SQLNSEffect:
 
     def adjust_exposure(self, index, exposure):
         effect_size = pd.Series(0, index=index)
+        untreated, ramp_up, full_treatment, ramp_down, post_treatment = self.get_treatment_groups(index)
 
+        effect_size.loc[untreated] = 0
+        effect_size.loc[ramp_up] = self.ramp_efficacy(ramp_up)
+        effect_size.loc[full_treatment] = self._effect_size.loc[full_treatment]
         if self.config.permanent:
-            pop = self.pop_view.get(index)
-            effectively_treated = pop.loc[pop['sqlns_treatment_start'] <= self.clock()]
+            effect_size.loc[ramp_down] = self._effect_size[ramp_down]
+            effect_size.loc[post_treatment] = self._effect_size[post_treatment]
         else:
-            effectively_treated = self.currently_covered(index)
+            effect_size.loc[ramp_down] = self.ramp_efficacy(ramp_down, invert=True)
+            effect_size.loc[post_treatment] = 0
 
-        effect_size.loc[effectively_treated] = self._effect_size.loc[effectively_treated]
         return exposure + effect_size
+
+    def get_treatment_groups(self, index):
+        ramp_time = pd.Timedelta(days=self.config.ramp)
+
+        pop = self.pop_view.get(index)
+        untreated = pop.loc[(pop['sqlns_treatment_start'].isnull())
+                            | (pop['sqlns_treatment_start'] <= self.clock())].index
+        ramp_up = pop.loc[(pop['sqlns_treatment_start'] < self.clock())
+                          & (self.clock() < pop['sqlns_treatment_start'] + ramp_time)].index
+        full_treatment = pop.loc[(pop['sqlns_treatment_start'] + ramp_time <= self.clock())
+                                 & (self.clock() <= pop['sqlns_treatment_end'])].index
+        ramp_down = pop.loc[(pop['sqlns_treatment_end'] < self.clock())
+                            & (self.clock() < pop['sqlns_treatment_end'] + ramp_time)].index
+        post_treatment = pop.loc[pop['sqlns_treatment_end'] + ramp_time <= self.clock()].index
+
+        return untreated, ramp_up, full_treatment, ramp_down, post_treatment
+
+    def ramp_efficacy(self, index, invert=False):
+        """Logistic growth/decline of effect size.
+
+        We're using a logistic function here to give a smooth treatment ramp.
+        A logistic function has the form L/(1 - e**(-k * (t - t0))
+        Where
+        L  : function maximum
+        t0 : center of the function
+        k  : growth rate
+
+        We want the function to be 0 for times below the treatment start,
+        then to ramp up to the maximum over sum duration, stay there until
+        the treatment stops, then ramp back down over the same duration.
+        This means we effectively want to squeeze a logistic function into
+        the discontinuities between a step function.  Making a function
+        that smoothly transitions would be more math than I want to do right
+        now.  Making a function that almost smoothly transitions is pretty
+        easy and involves picking a growth rate that gets us very close
+        to 0 and the maximum effect when we transition between constant
+        effect sizes and the growth periods.
+
+        I've parameterized in terms of the inverse of the  proportion of the
+        maximum effect size, p, so that the jump between the different
+        sections of the function is equal to (1 / p) * L.
+
+        """
+        if index.empty:
+            return pd.Series()
+
+        pop = self.pop_view.get(index)
+        # 1/p is the proportion of the maximum effect.
+        # Size of the discontinuity between constant and logistic functions.
+        p = 10_000
+        growth_rate = 2 / self.config.ramp * np.log(p)
+        ramp_days = pd.Timedelta(days=self.config.ramp)
+
+        if invert:
+            ramp_position = ((pop['sqlns_treatment_end'] + ramp_days / 2) - self.clock()) / pd.Timedelta(days=1)
+        else:
+            ramp_position = (self.clock() - (pop['sqlns_treatment_start'] + ramp_days / 2)) / pd.Timedelta(days=1)
+
+        scale = 1 / (1 + np.exp(-growth_rate * ramp_position))
+        return scale * self._effect_size[index]
