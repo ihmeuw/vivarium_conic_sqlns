@@ -13,7 +13,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 0.895
-        sd: 0.0658
+        sd: 0.0656
 
   # No permanent effects, 1/2 iron effect size
   - sqlns:
@@ -26,7 +26,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 4.475
-        sd: 0.329
+        sd: 0.328
 
   # No permanent effects, full iron effect size
   - sqlns:
@@ -39,7 +39,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 8.95
-        sd: 0.658
+        sd: 0.656
 
   # CGF permanent, 1/10 iron effect size
   - sqlns:
@@ -52,7 +52,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 0.895
-        sd: 0.0658
+        sd: 0.0656
 
   # CGF permanent, 1/2 iron effect size
   - sqlns:
@@ -65,7 +65,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 4.475
-        sd: 0.329
+        sd: 0.328
 
   # CGF permanent, full iron effect size
   - sqlns:
@@ -78,7 +78,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: False
         mean: 8.95
-        sd: 0.658
+        sd: 0.656
 
   # All permanent, 1/10 iron effect size
   - sqlns:
@@ -91,7 +91,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: True
         mean: 0.895
-        sd: 0.0658
+        sd: 0.0656
 
   # All permanent, 1/2 iron effect size
   - sqlns:
@@ -104,7 +104,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: True
         mean: 4.475
-        sd: 0.329
+        sd: 0.328
 
   # All permanent, full iron effect size
   - sqlns:
@@ -117,7 +117,7 @@ branches:
       effect_on_iron_deficiency:
         permanent: True
         mean: 8.95
-        sd: 0.658
+        sd: 0.656
 
 
 
