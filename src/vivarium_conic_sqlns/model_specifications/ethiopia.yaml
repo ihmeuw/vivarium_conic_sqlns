@@ -35,6 +35,7 @@ components:
         - DisabilityObserver()  # custom to include FE deficiency
         - RiskObserver("risk_factor.child_stunting")
         - RiskObserver("risk_factor.child_wasting")
+        - SQLNSObserver()
     vivarium_public_health.metrics:
         - MortalityObserver()
     vivarium_public_health.disease.special_disease:

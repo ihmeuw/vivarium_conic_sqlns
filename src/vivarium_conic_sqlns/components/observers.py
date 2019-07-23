@@ -194,7 +194,7 @@ class SampleHistoryObserver:
 
 
 class SQLNSObserver:
-    """Observer for total dates treated with SQLNS."""
+    """Observer for total days treated with SQLNS."""
 
     @property
     def name(self):
@@ -217,8 +217,3 @@ class SQLNSObserver:
 
         metrics['sqlns_treated_days'] = treatment_days.sum()
         return metrics
-
-
-
-
-
