@@ -213,7 +213,7 @@ class SQLNSObserver:
         died_before_treatment_end = treated['exit_time'] < treatment_end
         treatment_end.loc[died_before_treatment_end] = treated.loc[died_before_treatment_end, 'exit_time']
 
-        treatment_days = (treated['sqlns_treatment_start'] - treatment_end) / pd.Timedelta(days=1)
+        treatment_days = (treatment_end - treated['sqlns_treatment_start']) / pd.Timedelta(days=1)
 
         metrics['sqlns_treated_days'] = treatment_days.sum()
         return metrics
