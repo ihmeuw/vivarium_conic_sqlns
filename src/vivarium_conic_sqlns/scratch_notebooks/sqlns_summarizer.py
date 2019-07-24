@@ -12,18 +12,18 @@ def default_column_categories_to_search_regexes():
         'input_draw': 'input_draw',
         'random_seed': 'random_seed',
         'location': 'location', # any column containing the string 'location'
-        'intervention': 'w*\.w*', # columns look like 'intervention_name.paramater'. Intervention parameters determine scenario.
+        'intervention': '\w+\.\w+', # columns look like 'intervention_name.paramater'. Parameters determine scenario.
         # Metadata about the simulation runs
         'run_time': 'run_time', # simulation run time
         # Data about the simulation results
         'diseases_at_end': '_prevalent_cases_at_sim_end$', # cause prevalence at end of simulation
         'disease_event_count': '_event_count$', # disease events throughout simulation - columns end in '_event_count'
         'population': 'population', # population statistics at end of simulation
-        'person_time': '^person_time', # string starts with 'person_time_'
-        'mortality': '^death_due_to_', # string starts with 'death'
+        'person_time': '^person_time', # string starts with 'person_time'
+        'mortality': '^death_due_to_', # string starts with 'death_due_to_'
         'total_daly': '^years_lived_with_disability$|^years_of_life_lost$', # sum of these 2 columns = DALYs for whole sim
-        'yld': '^ylds_due_to_', # YLD columns start with 'ylds'
-        'yll': '^ylls_due_to_', # YLL columns start with 'ylls'
+        'yld': '^ylds_due_to_', # YLD columns start with 'ylds_due_to_'
+        'yll': '^ylls_due_to_', # YLL columns start with 'ylls_due_to_'
         'categorical_risk': '_cat\d+_exposed', # columns for categorical risk exposures contain, e.g. '_cat16_exposed'
         'graded_sequela': 'mild|moderate|severe|unexposed', # anemia, for example
     }
@@ -61,7 +61,6 @@ def default_column_categories_to_extraction_regexes():
     #     'total_daly': '',
     #     'categorical_risk': '',
     }
-
 
 # Functions to return the 0.025-th and 0.975-th quantiles of a pd.Series.
 
@@ -126,17 +125,33 @@ class SQLNSOutputSummarizer():
         self.empty_categories = [category for category, cat_data in self.subdata.items() if len(cat_data.columns) == 0]
         
     def print_column_report(self):
-        """Print the missing and repeated columns if there were any, and any categories that didn't return a match"""
+        """
+        Print the total number of columns and the number of columns found in each category. Also print
+        the missing and repeated columns if there were any, and any categories that didn't return a match.
+        """
+        
+        col_cat_counts = self.column_category_counts()
+        
+        print(f"Number of data columns in output: {len(self.data.columns)}")
+        print(f"Total number of columns captured in categories: {sum(col_cat_counts.values())}\n")
+        
+        print("Number of columns in each category:\n", col_cat_counts, "\n")
+        
         print(f"Missing ({len(self.missing_columns)} data column(s) not captured in a category):\n",
               self.missing_columns)
         print(f"\nRepeated ({len(self.repeated_columns)} data column(s) appearing in more than one category):\n",
               self.repeated_columns)
         print(f"\nEmpty categories ({len(self.empty_categories)} categories with no matching data columns):\n",
               self.empty_categories)
+    
+    def column_category_counts(self):
+        """Get a dictionary mapping column categories to the number of columns found in that category."""
+        return {category: len(cat_data.columns) for category, cat_data in self.subdata.items()}
         
     def column_categories(self):
         """Get the list of column categories."""
-        return list(self.column_categories_to_search_regexes.keys())
+#         return list(self.column_categories_to_search_regexes.keys()) # This should be equivalent
+        return list(self.subdata.keys())
     
     def columns(self, column_category):
         """Get the column names in the specified category."""
