@@ -20,6 +20,7 @@ def default_column_categories_to_search_regexes():
         'disease_event_count': '_event_count$', # disease events throughout simulation - columns end in '_event_count'
         'population': 'population', # population statistics at end of simulation
         'person_time': '^person_time', # string starts with 'person_time'
+        'treated_days': 'treated_days', # total number of days of treatment
         'mortality': '^death_due_to_', # string starts with 'death_due_to_'
         'total_daly': '^years_lived_with_disability$|^years_of_life_lost$', # sum of these 2 columns = DALYs for whole sim
         'yld': '^ylds_due_to_', # YLD columns start with 'ylds_due_to_'
@@ -38,7 +39,7 @@ def default_column_categories_to_extraction_regexes():
             # 'person_time_in_2020_among_female_in_age_group_late_neonatal'
             # 'person_time_in_2024_among_male_in_age_group_1_to_4'
 #             '(?P<person_time_metric>^person_time)_in_(?P<year>\d{4})_among_(?P<sex>\w+)_in_age_group_(?P<age_group>\w+$)',
-            '^(?P<measure>person_time)(_in_(?P<year>\d{4}))?(_among_(?P<sex>male|female))?(_in_age_group_(?P<age_group>\w+))?$',
+            '^(?P<measure>person_time)(?:_in_(?P<year>\d{4}))?(?:_among_(?P<sex>male|female))?(?:_in_age_group_(?P<age_group>\w+))?$',
         'mortality':
             # 'death_due_to_lower_respiratory_infections'
             # 'death_due_to_other_causes'
@@ -82,10 +83,10 @@ class SQLNSOutputSummarizer():
 #         # Sub-DataFrames corresponding to each column category
 #         self.subdata = {column_category: self.data[column_names]
 #                         for column_category, column_names in self.columns.items()}
-        # Initializes self.subdata, self.columns, 
-        # self.found_columns, self.missing_columns, self.repeated_columns, self.empty_categories:
         self.column_categories_to_extraction_regexes = None
         self.index_columns = None
+        # Initializes self.subdata,
+        # self.found_columns, self.missing_columns, self.repeated_columns, self.empty_categories:
         self.categorize_data_by_column()
         
     def categorize_data_by_column(self, column_categories_to_search_regexes=None):
@@ -130,12 +131,12 @@ class SQLNSOutputSummarizer():
         the missing and repeated columns if there were any, and any categories that didn't return a match.
         """
         
-        col_cat_counts = self.column_category_counts()
+#         col_cat_counts = self.column_category_counts()
         
         print(f"Number of data columns in output: {len(self.data.columns)}")
-        print(f"Total number of columns captured in categories: {sum(col_cat_counts.values())}\n")
+        print(f"Total number of columns captured in categories: {len(self.found_columns)}\n")
         
-        print("Number of columns in each category:\n", col_cat_counts, "\n")
+        print("Number of columns in each category:\n", self.column_category_counts(), "\n")
         
         print(f"Missing ({len(self.missing_columns)} data column(s) not captured in a category):\n",
               self.missing_columns)
@@ -226,8 +227,7 @@ class SQLNSOutputSummarizer():
 #             # pd.MultiIndex.from_tuples(column_decomposition.itertuples(index=False), names=column_decomposition.columns)
 #             df.columns = pd.MultiIndex.from_frame(column_decompositions)
 #             self.subdata[category] = df
-            
             column_decompositions = self.subdata[category].columns.str.extract(extraction_regex)
-            self.subdata[category].columns = pd.MultiIndex.from_frame(column_decompositions)
+            self.subdata[category].columns = pd.MultiIndex.from_frame(column_decompositions.dropna(axis=1, how='all'))
 
 
