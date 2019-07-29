@@ -35,6 +35,33 @@ def default_column_categories_to_search_regexes():
 # Comments show example column names to extract cause/metric and demographic details from:
 def default_column_categories_to_extraction_regexes():
     return {
+        'diseases_at_end':
+            # 'lower_respiratory_infections_prevalent_cases_at_sim_end'
+            # 'measles_prevalent_cases_at_sim_end'
+            '^(?P<cause>\w+)_(?P<measure>prevalent_cases_at_sim_end)$',
+####    
+# 2019-07-26: These regexen work, but I'm not sure if they're useful. Some extracted strings will be empty
+#             but should later be replaced with e.g. 'infected' or 'all', which complicates things.
+#             It could perhaps make things easier later to extract NaN's instead of empty strings,
+#             but I'm not sure.
+#             Idea: Add a method to standardize column names before any other processing. You could
+#             pass it 2 regexen (a search and a replacement) for each column category you want to alter.
+#             OR: In this dictionary, use lists as values in order to pass 1 or 3 regexes
+#             (optional search and replace, plus 1 for extraction).
+#         'disease_event_count':
+#             # 'susceptible_to_lower_respiratory_infections_event_count',
+#             # 'lower_respiratory_infections_event_count',
+#             # 'susceptible_to_measles_event_count',
+#             # 'measles_event_count', # event category should be 'infected'
+#             # 'recovered_from_measles_event_count'
+#             '^(?P<category>susceptible|recovered|)(?:_to_|_from_|)(?P<cause>\w+)_(?P<measure>event_count)$',
+#         'population':
+#             # 'total_population_untracked',
+#             # 'total_population_tracked',
+#             # 'total_population', # population category should be 'all'
+#             # 'total_population_living',
+#             # 'total_population_dead'
+#             '^total_(?P<measure>population)(?:_|)(?P<category>\w*)$',
         'person_time':
             # 'person_time_in_2020_among_female_in_age_group_late_neonatal'
             # 'person_time_in_2024_among_male_in_age_group_1_to_4'
@@ -60,7 +87,13 @@ def default_column_categories_to_extraction_regexes():
 #             '(?P<yll_cause_name>^ylls_due_to_\w+)_in_(?P<year>\d{4})_among_(?P<sex>\w+)_in_age_group_(?P<age_group>\w+$)',
             '^(?P<measure>ylls)_due_to_(?P<cause>\w+?)(?:_in_(?P<year>\d{4}))?(?:_among_(?P<sex>male|female))?(?:_in_age_group_(?P<age_group>\w+))?$',
     #     'total_daly': '',
-    #     'categorical_risk': '',
+        'categorical_risk':
+            # 'child_stunting_cat2_exposed_in_2020_among_0_to_5'
+            '^(?P<risk>\w+)_(?P<category>cat\d+)_exposed(?:_in_(?P<year>\d{4})|)(?:_among_(?P<age_group>\w+)|)$',
+        'graded_sequela':
+            # 'anemia_unexposed_in_2020_among_0_to_5'
+            # 'anemia_mild_in_2020_among_0_to_5'
+            '^(?P<sequela>\w+)_(?P<category>mild|moderate|severe|unexposed)(?:_in_(?P<year>\d{4})|)(?:_among_(?P<age_group>\w+)|)$',
     }
 
 # Functions to return the 0.025-th and 0.975-th quantiles of a pd.Series.
@@ -110,9 +143,10 @@ class SQLNSOutputSummarizer():
             
         # Create dictionary mapping each column category to a pd.Index of column names in that category
         # 2019-07-18: Eliminating this attribute in favor of accessing column names via subdata frames.
+        # 2019-07-26: Reinstating this attribute to retain original column names vs. only MultiIndices after parsing.
 #         self.columns = {category: self.data.filter(regex=cat_regex).columns
 #                         for category, cat_regex in self.column_categories_to_search_regexes.items()}
-#         self.columns = {category: df.columns for category, df in self.subdata.items()}
+        self._columns = pd.Series({category: df.columns for category, df in self.subdata.items()})
 
         # Get a list (or pd.Series) of the found columns to check for missing or duplicate columns
         # found_columns = pd.concat(pd.Series(col_names) for col_names in columns.values())
@@ -154,9 +188,11 @@ class SQLNSOutputSummarizer():
 #         return list(self.column_categories_to_search_regexes.keys()) # This should be equivalent
         return list(self.subdata.keys())
     
-    def columns(self, column_category):
+    def columns(self, *column_categories):
         """Get the column names in the specified category."""
-        return self.subdata[column_category].columns
+#         return self.subdata[column_category].columns
+#         return self._columns[column_category]
+        return [column for columns in self._columns[list(column_categories)] for column in columns]
     
     def rename_intervention_columns(self, column_name_mapper=None):
         """
@@ -168,7 +204,7 @@ class SQLNSOutputSummarizer():
 #         # Replace all characters from start up through '.' with the empty string - or use more descriptive version below 
 #         intervention_columns = self.columns['intervention'].str.replace(r'^.*\.', '')
             # Replace whole string with the short name that comes after the period:
-            intervention_columns = self.columns('intervention').str.replace(r'.*\.(?P<short_name>.+)', r'\g<short_name>')
+            intervention_columns = self.columns('intervention').str.replace(r'.+\.(?P<short_name>\w+)', r'\g<short_name>')
             column_name_mapper = {long_name: short_name for long_name, short_name
                                   in zip(self.columns('intervention'), intervention_columns)}
         else:
@@ -176,6 +212,7 @@ class SQLNSOutputSummarizer():
         
         self.data = self.data.rename(columns=column_name_mapper)
         self.subdata['intervention'] = self.data[intervention_columns]
+        self._columns['intervention'] = self.subdata['intervention'].columns
         self.column_categories_to_search_regexes['intervention'] = '|'.join(intervention_columns)
         
     def sum_over_random_seeds(self, index_columns=None):
@@ -193,8 +230,9 @@ class SQLNSOutputSummarizer():
         self.data = self.data.drop(columns=self.columns('random_seed')) # We don't want to sum random seeds. Instead...
         self.data['random_seed_count'] = 1 # This will count random seeds when we do .groupby().sum()
         # Update the mapped random_seed column name with the new value (there may be a better way to do this...)
-        # self.columns['random_seed'] = self.columns['random_seed'].str.replace('random_seed', 'random_seed_count')
+#         self._columns['random_seed'] = self._columns['random_seed'].str.replace('random_seed', 'random_seed_count')
         self.subdata['random_seed'] = self.data[['random_seed_count']] # Use a list to create a DataFrame rather than a Series
+        self._columns['random_seed'] = self.subdata['random_seed'].columns
         
 #         location_intervention_draw = [*self.columns('location'), *self.columns('intervention'), *self.columns('input_draw')]
         self.data = self.data.groupby(self.index_columns).sum()
@@ -208,7 +246,7 @@ class SQLNSOutputSummarizer():
 #                         for category, cat_regex in self.column_categories_to_search_regexes.items()}
         self.categorize_data_by_column()
         
-    def reindex_sub_dataframes(self, column_categories_to_extraction_regexes=None):
+    def parse_column_names_and_reindex(self, column_categories_to_extraction_regexes=None):
         """
         Create subdataframes for the specified categories with columns MultiIndexed by
         data extracted from original column names.
@@ -220,14 +258,11 @@ class SQLNSOutputSummarizer():
             
 #         self.subdata = {}
         for category, extraction_regex in self.column_categories_to_extraction_regexes.items():
-#             df = self.data[self.columns[category]]
-#             column_decompositions = df.columns.str.extract(extraction_regex)
-#             # Note: pd.MultiIndex.from_frame() requires pandas 0.24 or higher.
-#             # If using version 0.23 or lower, instead use:
-#             # pd.MultiIndex.from_tuples(column_decomposition.itertuples(index=False), names=column_decomposition.columns)
-#             df.columns = pd.MultiIndex.from_frame(column_decompositions)
-#             self.subdata[category] = df
+#             print(category)
             column_decompositions = self.subdata[category].columns.str.extract(extraction_regex)
+#             print(column_decompositions)
+            # Note: pd.MultiIndex.from_frame() requires pandas 0.24 or higher. If using version 0.23 or lower, instead use:
+            # pd.MultiIndex.from_tuples(column_decomposition.itertuples(index=False), names=column_decomposition.columns)
             self.subdata[category].columns = pd.MultiIndex.from_frame(column_decompositions.dropna(axis=1, how='all'))
 
 
