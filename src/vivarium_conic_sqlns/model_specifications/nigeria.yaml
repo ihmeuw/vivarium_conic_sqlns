@@ -93,7 +93,7 @@ configuration:
         mortality : True
         recoverable : True
 
-    sqlns:
+sqlns:
         start_date:
             year: 2020
             month: 1
@@ -108,19 +108,19 @@ configuration:
             mean: 0.10
             sd: 0.051
             individual_sd: 0.0
-            permanent: True
+            permanent: False
             ramp: 60
 
         effect_on_child_wasting:
             mean: 0.07
             sd: 0.041
             individual_sd: 0.0
-            permanent: True
+            permanent: False
             ramp: 60
 
         effect_on_iron_deficiency:
-            mean: 8.95
-            sd: 0.658
+            mean: 4.475
+            sd: 0.328
             individual_sd: 0.0
             permanent: False
             ramp: 60

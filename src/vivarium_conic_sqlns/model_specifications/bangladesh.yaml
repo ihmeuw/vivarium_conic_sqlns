@@ -117,8 +117,8 @@ configuration:
             ramp: 60
 
         effect_on_iron_deficiency:
-            mean: 8.95
-            sd: 0.658
+            mean: 4.475
+            sd: 0.328
             individual_sd: 0.0
             permanent: False
             ramp: 60
