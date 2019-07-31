@@ -2,6 +2,15 @@
 Module for plotting output of SQLNS model.
 Code was copied from Nathaniel's notebook 2019_07_25_validation_with_treated_days.ipynb
 on 2019-07-30. It may or may not work as is.
+
+Hmm, I successfully imported the module into a notebook, and it looks like it ran all the
+code and displayed the final graph. I think what we want to do is get rid of the
+@interact property on the functions, and explicitly call interact() from within the notebook.
+
+Also, it would be better to separate the data transformation (particularly the aggregation,
+which takes awhile) from the plotting. To do so, we probably have to rewrite the plotting
+functions to accept the appropriate dataframe as a parameter, and use the `fixed` feature
+in ipython widgets to fix the dataframe parameter in the interactive plots.
 """
 
 import pandas as pd
@@ -10,16 +19,24 @@ from ipywidgets import interact, IntSlider
 
 from sqlns_output_processing import *
 
+result_dir = '/share/costeffectiveness/results/sqlns/presentation/nigeria/2019_07_30_00_01_45'
+
 # Load outpt data - as of 2019-07-25 there are random seeds missing
+raw_output = load_output(result_dir, 'output.hdf')
+
 # Raw data aggregated by random seed, with intervention columns renamed
-r = clean_and_aggregate(result_dir, 'output.hdf')
+r = clean_and_aggregate(raw_output)
 
 # Get results disaggregated by cause and aggregated over all causes
 output = get_all_results(r, cause_names)
 
 # join_columns = [c for c in template_cols if c not in ['cause', 'measure']]
 # Add person_time and sqlns_treated_days columns for each (scenario, draw, cause) combination
-df = add_person_time_and_treated_days(output, join_columns)
+df = output.merge(get_person_time(r), on=join_columns).merge(get_treated_days(r), on=join_columns)
+
+
+## The previous 3 lines can be replaced with this new function:
+# df = get_transformed_data(raw_output)
 
 # Add columns for averted results
 averted_df = get_averted_results(df)

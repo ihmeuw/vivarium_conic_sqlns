@@ -1,7 +1,16 @@
 """
 Module for processing output of SQLNS model.
-Code was copied from Nathaniel's notebook 2019_07_25_validation_with_treated_days.ipynb
-on 2019-07-30. It may or may not work as is.
+Code was copied from Nathaniel's notebook `2019_07_25_validation_with_treated_days.ipynb`
+on 2019-07-30.
+
+The following code ran successfully in the notebook `2019_07_30_verify_yld_bug_fix.ipynb`:
+
+import vivarium_conic_sqlns.verification_and_validation.sqlns_output_processing as sop
+result_dir = '/share/costeffectiveness/results/sqlns/presentation/nigeria/2019_07_30_00_01_45'
+output = sop.load_output(result_dir, 'output.hdf')
+df = sop.get_transformed_data(output)
+averted_df = sop.get_averted_results(df)
+aggregated_df = sop.get_final_table(averted_df)
 """
 
 import pandas as pd
@@ -17,8 +26,6 @@ template_cols = ['coverage', 'duration', 'child_stunting_permanent',
 
 join_columns = [c for c in template_cols if c not in ['cause', 'measure']]
 
-# result_dir = '/share/costeffectiveness/results/sqlns/presentation/nigeria/2019_07_23_10_57_25'
-
 def load_output(path, filename):
     """Loads output file."""
     r = pd.read_hdf(f'{path}/{filename}')
@@ -27,23 +34,21 @@ def load_output(path, filename):
 # note that we have applied coefficient of variation as constant with different sqlns effect on iron deficiency
 def clean_and_aggregate(r):
     """
-    Loads output file, does the following "cleaning" steps, then sums over random seeds.
+    Does the following "cleaning" steps, then sums over random seeds.
     Cleaning steps:
         1. Rename intervention columns with shorter names.
         2. Multiply coverage by 100 to convert to percent.
-        3. Negate the 'sqlns_treated_days' column to make it positive.
     """
 #     r = pd.read_hdf(path + 'nigeria/2019_07_18_13_20_17/output.hdf')
-    r = pd.read_hdf(f'{path}/{filename}')
-    r.rename(columns={'sqlns.effect_on_child_stunting.permanent': 'child_stunting_permanent',
+    r=r.rename(columns={'sqlns.effect_on_child_stunting.permanent': 'child_stunting_permanent',
                       'sqlns.effect_on_child_wasting.permanent': 'child_wasting_permanent',
                       'sqlns.effect_on_iron_deficiency.permanent': 'iron_deficiency_permanent',
                       'sqlns.effect_on_iron_deficiency.mean': 'iron_deficiency_mean',
                       'sqlns.program_coverage': 'coverage',
-                      'sqlns.duration': 'duration'}, inplace=True)
+                      'sqlns.duration': 'duration'})
     r['coverage'] *= 100
-    # The 'sqlns_treated_days' column got subtracted in the wrong order for the 2019_07_23_10_57_25 run:
-    r['sqlns_treated_days'] = -1 * r['sqlns_treated_days'] # This line should be deleted once the code is fixed
+#     # The 'sqlns_treated_days' column got subtracted in the wrong order for the 2019_07_23_10_57_25 run:
+#     r['sqlns_treated_days'] = -1 * r['sqlns_treated_days'] # This line should be deleted once the code is fixed
     r = r.groupby(['coverage', 'duration', 'child_stunting_permanent', 'child_wasting_permanent', 'iron_deficiency_permanent', 'iron_deficiency_mean', 'input_draw']).sum()
     return r
 
@@ -71,6 +76,9 @@ def get_treated_days(data):
     return treated
 
 def get_disaggregated_results(data, cause_names):
+    
+    global template_cols
+    
     deaths = []
     ylls = []
     ylds = []
@@ -134,12 +142,26 @@ def get_all_results(data, cause_names):
     """
     return pd.concat([get_disaggregated_results(data, cause_names), get_all_cause_results(data)], sort=False)
 
-def add_person_time_and_treated_days(data, join_columns):
+# def add_person_time_and_treated_days(output, data, join_columns):
+#     """
+#     Add 'person_time' and 'sqlns_treated_days' columns to the dataframe so we have these data 
+#     for each (scenario, draw, cause) combination.
+#     """
+#     df = output.merge(get_person_time(data), on=join_columns).merge(get_treated_days(data), on=join_columns)
+#     return df
+
+def get_transformed_data(output):
     """
-    Add 'person_time' and 'sqlns_treated_days' columns to the dataframe so we have these data 
-    for each (scenario, draw, cause) combination.
+    Transforms the raw output file into "long" form.
+    The returned dataframe is that from `get_all_results`, but with 'person_time'
+    and 'sqlns_treated_days' columns added so that we have these data for each
+    (scenario, draw, cause) combination.
     """
-    df = output.merge(get_person_time(data), on=join_columns).merge(get_treated_days(data), on=join_columns)
+    global cause_names, join_columns
+    
+    r = clean_and_aggregate(output)
+    all_results = get_all_results(r, cause_names)
+    df = all_results.merge(get_person_time(r), on=join_columns).merge(get_treated_days(r), on=join_columns)
     return df
 
 def get_averted_results(df):
