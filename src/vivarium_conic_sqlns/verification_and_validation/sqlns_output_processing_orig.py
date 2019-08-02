@@ -15,57 +15,24 @@ aggregated_df = sop.get_final_table(averted_df)
 
 import pandas as pd
 
-# cause_names = ['lower_respiratory_infections', 'measles', 'diarrheal_diseases', 
-#                'protein_energy_malnutrition', 'iron_deficiency', 'other_causes']
+cause_names = ['lower_respiratory_infections', 'measles', 'diarrheal_diseases', 
+               'protein_energy_malnutrition', 'iron_deficiency', 'other_causes']
 
-# risk_names = ['anemia', 'child_stunting', 'child_wasting']
+risk_names = ['anemia', 'child_stunting', 'child_wasting']
 
-# template_cols = ['coverage', 'duration', 'child_stunting_permanent', 
-#                  'child_wasting_permanent', 'iron_deficiency_permanent', 
-#                  'iron_deficiency_mean', 'cause', 'measure', 'input_draw']
+template_cols = ['coverage', 'duration', 'child_stunting_permanent', 
+                 'child_wasting_permanent', 'iron_deficiency_permanent', 
+                 'iron_deficiency_mean', 'cause', 'measure', 'input_draw']
 
-# join_columns = [c for c in template_cols if c not in ['cause', 'measure']]
-
-# # Same as join_cols
-# index_cols = ['coverage', 'duration', 'child_stunting_permanent', 
-#                  'child_wasting_permanent', 'iron_deficiency_permanent', 
-#                  'iron_deficiency_mean', 'input_draw']
-
-# intervention_colname_mapper = {'sqlns.effect_on_child_stunting.permanent': 'child_stunting_permanent',
-#                       'sqlns.effect_on_child_wasting.permanent': 'child_wasting_permanent',
-#                       'sqlns.effect_on_iron_deficiency.permanent': 'iron_deficiency_permanent',
-#                       'sqlns.effect_on_iron_deficiency.mean': 'iron_deficiency_mean',
-#                       'sqlns.program_coverage': 'coverage',
-#                       'sqlns.duration': 'duration'}
+join_columns = [c for c in template_cols if c not in ['cause', 'measure']]
 
 def load_output(path, filename):
     """Loads output file."""
     r = pd.read_hdf(f'{path}/{filename}')
     return r
 
-def load_by_location_and_rundate(base_directory: str, locations_run_dates: dict) -> pd.DataFrame:
-    """Load output.hdf files from folders namedd with the convention 'base_directory/location/rundate/output.hdf'"""
-    
-    # Use dictionary to map countries to the correct path for the Vivarium output to process
-    # E.g. /share/costeffectiveness/results/sqlns/bangladesh/2019_06_21_00_09_53
-    locactions_paths = {location: f'{base_directory}/{location.lower()}/{run_date}/output.hdf'
-                       for location, run_date in locations_run_dates.items()}
-
-    # Read in data from different countries
-    locations_outputs = {location: pd.read_hdf(path) for location, path in locactions_paths.items()}
-
-    for location, output in locations_outputs.items():
-        output['location'] = location
-    
-    return pd.concat(locations_outputs.values(), copy=False, sort=False)
-    
-def print_location_output_shapes(locations, all_output):
-    """Print the shapes of outputs for each location to check whether all the same size or if some data is missing"""
-    for location in locations:
-        print(location, all_output.loc[all_output.location==location].shape)
-
 # note that we have applied coefficient of variation as constant with different sqlns effect on iron deficiency
-def clean_and_aggregate(r, colname_mapper, index_cols, coverage_col):
+def clean_and_aggregate(r):
     """
     Does the following "cleaning" steps, then sums over random seeds.
     Cleaning steps:
@@ -73,19 +40,21 @@ def clean_and_aggregate(r, colname_mapper, index_cols, coverage_col):
         2. Multiply coverage by 100 to convert to percent.
     """
 #     r = pd.read_hdf(path + 'nigeria/2019_07_18_13_20_17/output.hdf')
-    r=r.rename(columns=colname_mapper)
-    r[coverage_col] *= 100
-
-#     r = r.groupby(['coverage', 'duration', 'child_stunting_permanent', 'child_wasting_permanent', 'iron_deficiency_permanent', 'iron_deficiency_mean', 'input_draw']).sum()
-    r = r.groupby(index_cols).sum()
+    r=r.rename(columns={'sqlns.effect_on_child_stunting.permanent': 'child_stunting_permanent',
+                      'sqlns.effect_on_child_wasting.permanent': 'child_wasting_permanent',
+                      'sqlns.effect_on_iron_deficiency.permanent': 'iron_deficiency_permanent',
+                      'sqlns.effect_on_iron_deficiency.mean': 'iron_deficiency_mean',
+                      'sqlns.program_coverage': 'coverage',
+                      'sqlns.duration': 'duration'})
+    r['coverage'] *= 100
+#     # The 'sqlns_treated_days' column got subtracted in the wrong order for the 2019_07_23_10_57_25 run:
+#     r['sqlns_treated_days'] = -1 * r['sqlns_treated_days'] # This line should be deleted once the code is fixed
+    r = r.groupby(['coverage', 'duration', 'child_stunting_permanent', 'child_wasting_permanent', 'iron_deficiency_permanent', 'iron_deficiency_mean', 'input_draw']).sum()
     return r
 
-def standardize_shape(data, measure, index_cols):
+def standardize_shape(data, measure):
     measure_data = data.loc[:, [c for c in data.columns if measure in c]]
-    index_level = len(index_cols)
-#     measure_data = measure_data.stack().reset_index().rename(columns={'level_7': 'label', 0: 'value'})
-    measure_data = measure_data.stack().reset_index().rename(
-        columns={f'level_{index_level}': 'label', 0: 'value'})
+    measure_data = measure_data.stack().reset_index().rename(columns={'level_7': 'label', 0: 'value'})
     if 'due_to' in measure:
         measure, cause = measure.split('_due_to_', 1)
         measure_data.loc[:, 'measure'] = measure
@@ -96,51 +65,48 @@ def standardize_shape(data, measure, index_cols):
     
     return measure_data
 
-def get_person_time(data, index_cols):
-    pt = standardize_shape(data, 'person_time', index_cols)
+def get_person_time(data):
+    pt = standardize_shape(data, 'person_time')
     pt = pt.rename(columns={'value': 'person_time'}).drop(columns='measure')
     return pt
 
-def get_treated_days(data, index_cols):
-    treated = standardize_shape(data, 'sqlns_treated_days', index_cols)
+def get_treated_days(data):
+    treated = standardize_shape(data, 'sqlns_treated_days')
     treated = treated.rename(columns={'value': 'sqlns_treated_days'}).drop(columns='measure')
     return treated
 
-def get_disaggregated_results(data, cause_names, index_cols):
+def get_disaggregated_results(data, cause_names):
     
-#     global template_cols
+    global template_cols
     
     deaths = []
     ylls = []
     ylds = []
     dalys = []
-#     level = len(index_cols)
     for cause in cause_names:
         if cause in cause_names[:4]:
-            deaths.append(standardize_shape(data, f'death_due_to_{cause}', index_cols))
+            deaths.append(standardize_shape(data, f'death_due_to_{cause}'))
             
-            ylls_sub = standardize_shape(data, f'ylls_due_to_{cause}', index_cols)
-            ylds_sub = standardize_shape(data, f'ylds_due_to_{cause}', index_cols)
-#             dalys_sub = (ylds_sub.set_index([c for c in template_cols if c != 'measure']) + \
-#                          ylls_sub.set_index([c for c in template_cols if c != 'measure'])).reset_index()
-            dalys_sub = (ylds_sub.set_index(index_cols+['cause']) + \
-                         ylls_sub.set_index(index_cols+['cause'])).reset_index()
+            ylls_sub = standardize_shape(data, f'ylls_due_to_{cause}')
+            ylds_sub = standardize_shape(data, f'ylds_due_to_{cause}')
+            dalys_sub = (ylds_sub.set_index([c for c in template_cols if c != 'measure']) + \
+                         ylls_sub.set_index([c for c in template_cols if c != 'measure'])).reset_index()
             dalys_sub['measure'] = 'dalys'
             
             ylls.append(ylls_sub)
             ylds.append(ylds_sub)
             dalys.append(dalys_sub)
         elif cause == 'iron_deficiency':
-            ylds_sub = standardize_shape(data, f'ylds_due_to_{cause}', index_cols)     
+            ylds_sub = standardize_shape(data, f'ylds_due_to_{cause}')     
             dalys_sub = ylds_sub.copy()
             dalys_sub['measure'] = 'dalys'
             
             ylds.append(ylds_sub)
             dalys.append(dalys_sub)
         else: # cause == 'other_causes'
-            deaths.append(standardize_shape(data, f'death_due_to_{cause}', index_cols))
+            deaths.append(standardize_shape(data, f'death_due_to_{cause}'))
             
-            ylls_sub = standardize_shape(data, f'ylls_due_to_{cause}', index_cols)
+            ylls_sub = standardize_shape(data, f'ylls_due_to_{cause}')
             dalys_sub = ylls_sub.copy()
             dalys_sub['measure'] = 'dalys'
             
@@ -153,12 +119,11 @@ def get_disaggregated_results(data, cause_names, index_cols):
     daly_data = pd.concat(dalys, sort=False)
     
     output = pd.concat([death_data, yll_data, yld_data, daly_data], sort=False)
-#     output = output.set_index(template_cols).sort_index()
-    output = output.set_index(index_cols + ['cause', 'measure']).sort_index()
+    output = output.set_index(template_cols).sort_index()
     
     return output.reset_index()
 
-def get_all_cause_results(data, index_cols):
+def get_all_cause_results(data):
     all_cause_data = data[['total_population_dead', 
                            'years_of_life_lost', 
                            'years_lived_with_disability']].rename(
@@ -169,41 +134,37 @@ def get_all_cause_results(data, index_cols):
     all_cause_data['dalys_due_to_all_causes'] = (all_cause_data['ylls_due_to_all_causes'] 
                                                  + all_cause_data['ylds_due_to_all_causes'])
     
-    return pd.concat([standardize_shape(all_cause_data, column, index_cols)
-                      for column in all_cause_data.columns], sort=False)
+    return pd.concat([standardize_shape(all_cause_data, column) for column in all_cause_data.columns], sort=False)
 
-def get_all_results(data, cause_names, index_cols):
+def get_all_results(data, cause_names):
     """
     Get transformed output disaggregated by cause and aggregated over all causes.
     """
-    return pd.concat([get_disaggregated_results(data, cause_names, index_cols),
-                      get_all_cause_results(data, index_cols)], sort=False)
+    return pd.concat([get_disaggregated_results(data, cause_names), get_all_cause_results(data)], sort=False)
 
-# def add_person_time_and_treated_days(output, data, index_cols):
+# def add_person_time_and_treated_days(output, data, join_columns):
 #     """
 #     Add 'person_time' and 'sqlns_treated_days' columns to the dataframe so we have these data 
 #     for each (scenario, draw, cause) combination.
 #     """
-#     df = output.merge(get_person_time(data), on=index_cols).merge(get_treated_days(data), on=index_cols)
+#     df = output.merge(get_person_time(data), on=join_columns).merge(get_treated_days(data), on=join_columns)
 #     return df
 
-def get_transformed_data(data, cause_names, index_cols):
+def get_transformed_data(output):
     """
     Transforms the raw output file into "long" form.
     The returned dataframe is that from `get_all_results`, but with 'person_time'
     and 'sqlns_treated_days' columns added so that we have these data for each
     (scenario, draw, cause) combination.
     """
-#     global cause_names, join_columns
+    global cause_names, join_columns
     
-#     r = clean_and_aggregate(output)
-    all_results = get_all_results(data, cause_names, index_cols)
-    df = all_results.merge(
-        get_person_time(data, index_cols), on=index_cols).merge(
-        get_treated_days(data, index_cols), on=index_cols)
+    r = clean_and_aggregate(output)
+    all_results = get_all_results(r, cause_names)
+    df = all_results.merge(get_person_time(r), on=join_columns).merge(get_treated_days(r), on=join_columns)
     return df
 
-def get_averted_results(df, index_cols, coverage_col):
+def get_averted_results(df):
     """
     Add columns for averted results by subtracting from baseline.
     Also adds columns for:
@@ -216,13 +177,8 @@ def get_averted_results(df, index_cols, coverage_col):
         (this will always be slightly smaller than the raw 'treated_days_per_averted'
         values, but the calculation avoids divide-by-zeros at the draw level). 
     """
-#     # Original version:
-#     bau = df[df.coverage == 0.0].drop(columns=['coverage', 'sqlns_treated_days'])
-#     t = pd.merge(df, bau, on=template_cols[1:], suffixes=['', '_bau'])
-    bau = df[df[coverage_col] == 0.0].drop(columns=[coverage_col, 'sqlns_treated_days'])
-    t = pd.merge(df, bau,
-                 on = ['location', 'cause', 'measure'] + [col for col in index_cols if col != coverage_col],
-                 suffixes=['', '_bau'])
+    bau = df[df.coverage == 0.0].drop(columns=['coverage', 'sqlns_treated_days'])
+    t = pd.merge(df, bau, on=template_cols[1:], suffixes=['', '_bau'])
     
     # Averted raw value
     t['averted'] = t['value_bau'] - t['value']
@@ -243,15 +199,13 @@ def get_averted_results(df, index_cols, coverage_col):
     
     return t
 
-def get_final_table(data, index_cols):
+def get_final_table(data):
     """
     Aggregate measures over draws to compute the mean and lower 2.5% and upper 97.5% percentiles.
     Uses pandas DataFrame.describe() method, so it also returns median and standard deviation.
     """
     # Group by all index columns except input_draw to aggregate over draws
-    aggregate_index = [col for col in index_cols if col != 'input_draw'] + ['cause', 'measure']
-    # Original version: g = data.groupby(template_cols[:-1])[[]]
-    g = data.groupby(aggregate_index)[['value',
+    g = data.groupby(template_cols[:-1])[['value',
                                           'person_time', 
                                           'sqlns_treated_days',
                                           'averted',
