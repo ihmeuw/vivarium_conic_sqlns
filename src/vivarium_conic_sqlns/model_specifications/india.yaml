@@ -93,7 +93,7 @@ configuration:
         mortality : True
         recoverable : True
 
-sqlns:
+    sqlns:
         start_date:
             year: 2020
             month: 1
